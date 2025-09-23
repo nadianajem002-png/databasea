@@ -3,76 +3,102 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Medication List (per user)</title>
+  <title>Medication DB — Email Sign-In</title>
   <style>
-    body{font-family:system-ui,Arial,sans-serif;max-width:900px;margin:24px auto;padding:0 12px}
-    h1{font-size:20px;margin:0 0 12px}
-    .card{border:1px solid #e4e4e7;border-radius:12px;padding:12px;margin:12px 0}
+    body{font-family:system-ui,Arial,sans-serif;max-width:980px;margin:24px auto;padding:0 12px}
+    h1{font-size:22px;margin:0 0 12px}
+    .card{border:1px solid #e5e7eb;border-radius:12px;padding:14px;margin:14px 0}
     .grid{display:grid;grid-template-columns:2fr 1fr 1fr 2fr auto;gap:8px}
     input,button{padding:8px;border:1px solid #cbd5e1;border-radius:8px}
     button{cursor:pointer}
-    ul{list-style:none;margin:0;padding:0}
-    li{border:1px solid #eee;border-radius:10px;padding:10px;margin:8px 0}
     .row{display:grid;grid-template-columns:2fr 1fr 1fr 2fr auto;gap:8px;align-items:center}
-    .muted{color:#666;font-size:12px}
-    .actions button{margin-left:6px}
-    .error{color:#b91c1c;font-size:12px;margin-top:8px;display:none}
-    .ok{color:#065f46;font-size:12px}
+    ul{list-style:none;margin:0;padding:0}
+    li{border:1px solid #f1f5f9;border-radius:10px;padding:10px;margin:8px 0}
+    .muted{color:#64748b;font-size:12px}
+    .ok{color:#065f46}
+    .bad{color:#b91c1c}
+    .flex{display:flex;gap:8px;flex-wrap:wrap}
+    .hidden{display:none}
+    .right{float:right}
+    .auth-grid{display:grid;grid-template-columns:1fr 1fr auto auto auto;gap:8px}
   </style>
 </head>
 <body>
-  <h1>Medication Database (saved to your account)</h1>
-  <div id="auth-status" class="muted">Connecting…</div>
+  <h1>Medication Database <span class="muted">— saved to your email account</span></h1>
 
-  <div class="card">
+  <div class="card" id="auth-card">
+    <div class="auth-grid">
+      <input id="email" type="email" placeholder="Email" autocomplete="username" />
+      <input id="password" type="password" placeholder="Password" autocomplete="current-password" />
+      <button id="signup">Sign up</button>
+      <button id="signin">Sign in</button>
+      <button id="reset">Reset password</button>
+    </div>
+    <div class="muted" id="auth-help" style="margin-top:8px">
+      New here? Enter email + password and click <em>Sign up</em>. Already have an account? <em>Sign in</em>.
+      <button id="signout" class="right">Sign out</button>
+    </div>
+    <div id="status" class="muted" style="margin-top:6px">Not signed in.</div>
+    <div id="err" class="bad" style="margin-top:6px;display:none"></div>
+  </div>
+
+  <div class="card hidden" id="app-card">
     <div class="grid">
-      <input id="name" placeholder="Drug (e.g., Clopidogrel)" required />
+      <input id="name" placeholder="Drug (e.g., Clopidogrel)" />
       <input id="dose" placeholder="Dose (e.g., 75 mg)" />
       <input id="route" placeholder="Route (PO, IV…)" />
       <input id="freq" placeholder="Frequency (daily, q6h…)" />
-      <button id="add-btn">Add</button>
+      <button id="add">Add</button>
     </div>
-    <div class="muted" style="margin-top:8px">
-      Data is private to your sign-in. Anonymous sign-in is enabled by default.
-      <button id="signout-btn" style="float:right">Sign out</button>
-    </div>
-    <div id="err" class="error"></div>
+    <div class="muted" style="margin-top:8px">Signed in as <span id="who"></span>. Your list is private to your account.</div>
   </div>
 
-  <div class="card">
+  <div class="card hidden" id="list-card">
     <strong>Your Medications</strong>
     <ul id="list"></ul>
   </div>
 
-  <!-- Firebase modular SDK. Keep 'type="module"'. If your console shows a different version, update all three URLs to the SAME version. -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
-    import { getAuth, onAuthStateChanged, signInAnonymously, signOut } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+    import {
+      getAuth, setPersistence, browserLocalPersistence,
+      onAuthStateChanged, createUserWithEmailAndPassword,
+      signInWithEmailAndPassword, sendPasswordResetEmail, signOut
+    } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
     import {
       getFirestore, collection, addDoc, doc, updateDoc, deleteDoc,
       serverTimestamp, onSnapshot, query, orderBy
     } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
-    // 1) PASTE YOUR CONFIG from Firebase Console here (replace the placeholder values)
     const firebaseConfig = {
-      apiKey: "AIzaSyB4SLwd4A3wNrstcHNzuI83z0G8e-1AK50",
-      authDomain: "nadia-b4de4.firebaseapp.com",
-      projectId: "nadia-b4de4",
-      storageBucket: "nadia-b4de4.firebasestorage.app",
-      messagingSenderId: "354468688054",
-      appId: "1:354468688054:web:9163d3700f3fd4c0097617"
+        apiKey: "AIzaSyB4SLwd4A3wNrstcHNzuI83z0G8e-1AK50",
+         authDomain: "nadia-b4de4.firebaseapp.com",
+        projectId: "nadia-b4de4",
+        storageBucket: "nadia-b4de4.firebasestorage.app",
+        messagingSenderId: "354468688054",
+        appId: "1:354468688054:web:9163d3700f3fd4c0097617"
     };
 
-    // --- Do not edit below unless you know why ---
-    const app  = initializeApp(firebaseConfig);
+    const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
-    const db   = getFirestore(app);
+    const db = getFirestore(app);
 
-    const els = {
-      status: document.getElementById('auth-status'),
+    await setPersistence(auth, browserLocalPersistence);
+
+    const ui = {
+      authCard: document.getElementById('auth-card'),
+      appCard: document.getElementById('app-card'),
+      listCard: document.getElementById('list-card'),
+      status: document.getElementById('status'),
       err: document.getElementById('err'),
-      addBtn: document.getElementById('add-btn'),
-      signout: document.getElementById('signout-btn'),
+      email: document.getElementById('email'),
+      password: document.getElementById('password'),
+      signup: document.getElementById('signup'),
+      signin: document.getElementById('signin'),
+      reset: document.getElementById('reset'),
+      signout: document.getElementById('signout'),
+      who: document.getElementById('who'),
+      add: document.getElementById('add'),
       name: document.getElementById('name'),
       dose: document.getElementById('dose'),
       route: document.getElementById('route'),
@@ -80,34 +106,62 @@
       list: document.getElementById('list')
     };
 
-    let uid = null;
-    let unsub = null;
+    const show = (el, yes) => el.classList.toggle('hidden', !yes);
+    const showError = (e) => { ui.err.style.display='block'; ui.err.textContent = e?.message || String(e); console.error(e); };
+    const clearError = () => { ui.err.style.display='none'; ui.err.textContent=''; };
 
-    function showError(e){
-      els.err.style.display = 'block';
-      els.err.textContent = e?.message || String(e);
-      console.error(e);
-    }
-
-    onAuthStateChanged(auth, async (user) => {
+    ui.signup.onclick = async () => {
+      clearError();
       try {
-        if (!user) {
-          await signInAnonymously(auth);
-          return;
-        }
-        uid = user.uid;
-        els.status.innerHTML = "Signed in <span class='ok'>(anonymous)</span>. Your data is private to you.";
-        const drugsCol = collection(db, `users/${uid}/drugs`);
-        const q = query(drugsCol, orderBy('createdAt', 'desc'));
-        if (unsub) unsub();
-        unsub = onSnapshot(q, (snap) => {
-          els.list.innerHTML = "";
-          if (snap.empty) {
-            const li = document.createElement('li');
-            li.textContent = "No medications yet. Add one above.";
-            els.list.appendChild(li);
-            return;
-          }
+        await createUserWithEmailAndPassword(auth, ui.email.value.trim(), ui.password.value);
+        ui.status.textContent = "Signed up.";
+      } catch (e) { showError(e); }
+    };
+
+    ui.signin.onclick = async () => {
+      clearError();
+      try {
+        await signInWithEmailAndPassword(auth, ui.email.value.trim(), ui.password.value);
+        ui.status.textContent = "Signed in.";
+      } catch (e) { showError(e); }
+    };
+
+    ui.reset.onclick = async () => {
+      clearError();
+      try {
+        await sendPasswordResetEmail(auth, ui.email.value.trim());
+        ui.status.textContent = "Password reset email sent.";
+      } catch (e) { showError(e); }
+    };
+
+    ui.signout.onclick = async () => {
+      clearError();
+      try { await signOut(auth); ui.status.textContent = "Signed out."; }
+      catch (e) { showError(e); }
+    };
+
+    let unsub = null;
+    onAuthStateChanged(auth, (user) => {
+      clearError();
+      if (!user) {
+        ui.status.textContent = "Not signed in.";
+        show(ui.appCard, false);
+        show(ui.listCard, false);
+        return;
+      }
+      ui.status.innerHTML = "Signed in. <span class='ok'>(Email/Password)</span>";
+      ui.who.textContent = user.email || user.uid;
+
+      if (unsub) unsub();
+      const drugsCol = collection(db, `users/${user.uid}/drugs`);
+      const q = query(drugsCol, orderBy('createdAt','desc'));
+      unsub = onSnapshot(q, (snap) => {
+        ui.list.innerHTML = "";
+        if (snap.empty) {
+          const li = document.createElement('li');
+          li.textContent = "No medications yet. Add one above.";
+          ui.list.appendChild(li);
+        } else {
           snap.forEach(docSnap => {
             const d = docSnap.data();
             const li = document.createElement('li');
@@ -117,13 +171,13 @@
               <div>${d.dose || ''}</div>
               <div>${d.route || ''}</div>
               <div>${d.freq || ''}</div>
-              <div class="actions">
+              <div>
                 <button data-act="edit">Edit</button>
                 <button data-act="del">Delete</button>
               </div>
             `;
             li.querySelector('[data-act="del"]').onclick = async () => {
-              try { await deleteDoc(doc(db, `users/${uid}/drugs/${docSnap.id}`)); }
+              try { await deleteDoc(doc(db, `users/${user.uid}/drugs/${docSnap.id}`)); }
               catch(e){ showError(e); }
             };
             li.querySelector('[data-act="edit"]').onclick = async () => {
@@ -136,35 +190,34 @@
                 if (route === null) return;
                 const freq = prompt("Frequency", d.freq || "");
                 if (freq === null) return;
-                await updateDoc(doc(db, `users/${uid}/drugs/${docSnap.id}`), { name, dose, route, freq });
+                await updateDoc(doc(db, `users/${user.uid}/drugs/${docSnap.id}`), { name, dose, route, freq });
               } catch(e){ showError(e); }
             };
-            els.list.appendChild(li);
+            ui.list.appendChild(li);
           });
-        });
-      } catch(e){ showError(e); }
+        }
+      });
+      show(ui.appCard, true);
+      show(ui.listCard, true);
     });
 
-    els.addBtn.onclick = async () => {
+    ui.add.onclick = async () => {
+      clearError();
+      const user = auth.currentUser;
+      if (!user) { ui.status.textContent = "Please sign in first."; return; }
+      const name = ui.name.value.trim();
+      if (!name) { ui.name.focus(); return; }
       try {
-        const name = els.name.value.trim();
-        if (!name){ els.name.focus(); return; }
-        await addDoc(collection(db, `users/${uid}/drugs`), {
+        await addDoc(collection(db, `users/${user.uid}/drugs`), {
           name,
-          dose: els.dose.value.trim(),
-          route: els.route.value.trim(),
-          freq: els.freq.value.trim(),
+          dose: ui.dose.value.trim(),
+          route: ui.route.value.trim(),
+          freq: ui.freq.value.trim(),
           createdAt: serverTimestamp()
         });
-        els.name.value = els.dose.value = els.route.value = els.freq.value = "";
-        els.name.focus();
-        els.err.style.display = 'none';
+        ui.name.value = ui.dose.value = ui.route.value = ui.freq.value = "";
+        ui.name.focus();
       } catch(e){ showError(e); }
-    };
-
-    els.signout.onclick = async () => {
-      try { await signOut(auth); }
-      catch(e){ showError(e); }
     };
   </script>
 </body>
