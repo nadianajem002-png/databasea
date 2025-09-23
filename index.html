@@ -100,18 +100,18 @@
   </style>
 </head>
 <body>
-<!-- Sign-in panel (email/password). Minimal, won't affect your theme. -->
+<!-- Sign-in panel (email/password) -->
 <div id="auth-panel" style="margin:10px 0; font-family: system-ui, Arial, sans-serif;">
   <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
     <input id="email" type="email" placeholder="Email" autocomplete="username" style="padding:6px 8px;border:1px solid #cbd5e1;border-radius:8px">
     <input id="password" type="password" placeholder="Password" autocomplete="current-password" style="padding:6px 8px;border:1px solid #cbd5e1;border-radius:8px">
-    <button id="signup" class="btn-ghost">Sign up</button>
-    <button id="signin" class="btn">Sign in</button>
-    <button id="reset" class="btn-ghost">Reset</button>
-    <span id="status" class="hint" style="margin-left:8px">Not signed in.</span>
-    <button id="signout" class="btn-ghost" style="margin-left:auto">Sign out</button>
+    <button id="signup">Sign up</button>
+    <button id="signin">Sign in</button>
+    <button id="reset">Reset</button>
+    <span id="status" style="margin-left:8px;color:#64748b">Not signed in.</span>
+    <button id="signout" style="margin-left:auto">Sign out</button>
   </div>
-  <div id="err" class="hint" style="color:#b91c1c; margin-top:6px; display:none"></div>
+  <div id="err" style="color:#b91c1c; margin-top:6px; display:none"></div>
 </div>
 
   <div class="wrap">
@@ -717,9 +717,9 @@
     });
   </script>
 
-<!-- Firebase Email/Password + Firestore adapter -->
+<!-- Firebase Email/Password + Firestore adapter (fixed) -->
 <script type="module">
-  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+  import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
   import {
     getAuth, setPersistence, browserLocalPersistence,
     onAuthStateChanged, createUserWithEmailAndPassword,
@@ -729,7 +729,6 @@
     getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp
   } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
-  // >>> Paste your Firebase config here <<<
   const firebaseConfig = {
     apiKey: "AIzaSyB4SLwd4A3wNrstcHNzuI83z0G8e-1AK50",
     authDomain: "nadia-b4de4.firebaseapp.com",
@@ -739,12 +738,15 @@
     appId: "1:354468688054:web:9163d3700f3fd4c0097617"
   };
 
-  const app = initializeApp(firebaseConfig);
+  const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db   = getFirestore(app);
-  await setPersistence(auth, browserLocalPersistence);
+  console.log("[INIT] projectId =", app.options.projectId);
 
-  // UI refs
+  setPersistence(auth, browserLocalPersistence).then(() => {
+    console.log("[AUTH] Persistence ON");
+  }).catch(e => console.error("[AUTH] Persistence error:", e));
+
   const $ = (id)=>document.getElementById(id);
   const ui = {
     email: $('email'), password: $('password'),
@@ -754,118 +756,108 @@
   const showErr = (e)=>{ if(ui.err){ ui.err.style.display='block'; ui.err.textContent = e?.message || String(e); } console.error(e); };
   const clearErr = ()=>{ if(ui.err){ ui.err.style.display='none'; ui.err.textContent=''; } };
 
-  // Auth handlers
   ui.signup?.addEventListener('click', async ()=>{ clearErr(); try{
-    await createUserWithEmailAndPassword(auth, ui.email.value.trim(), ui.password.value);
-    ui.status.textContent = "Signed up.";
+    const email = ui.email.value.trim(); const pwd = ui.password.value;
+    const cred = await createUserWithEmailAndPassword(auth, email, pwd);
+    ui.status.textContent = "Signed up as " + (cred.user.email || cred.user.uid);
   }catch(e){ showErr(e); } });
 
   ui.signin?.addEventListener('click', async ()=>{ clearErr(); try{
-    await signInWithEmailAndPassword(auth, ui.email.value.trim(), ui.password.value);
-    ui.status.textContent = "Signed in.";
+    const email = ui.email.value.trim(); const pwd = ui.password.value;
+    const cred = await signInWithEmailAndPassword(auth, email, pwd);
+    ui.status.textContent = "Signed in as " + (cred.user.email || cred.user.uid);
   }catch(e){ showErr(e); } });
 
   ui.reset?.addEventListener('click', async ()=>{ clearErr(); try{
     await sendPasswordResetEmail(auth, ui.email.value.trim());
-    ui.status.textContent = "Password reset sent.";
+    ui.status.textContent = "Password reset email sent.";
   }catch(e){ showErr(e); } });
 
   ui.signout?.addEventListener('click', async ()=>{ clearErr(); try{
     await signOut(auth); ui.status.textContent = "Signed out.";
   }catch(e){ showErr(e); } });
 
-  // === Firestore sync ===
   let unsub = null;
-  let firstSyncDone = false;
+  function docRefFor(uid){ return doc(db, `users/${uid}/app/meds`); }
 
-  function docRefFor(uid){
-    return doc(db, `users/${uid}/app/meds`); // stores { items: [...], updatedAt }
-  }
+  function safeRender(){ try{ if(typeof render === 'function') render(); } catch(e){ console.warn('[RENDER] not ready', e); } }
 
-  // Helpers to access the original page's data/rendering
-  // MEDS, loadLocal, saveLocal, render() exist in the original inline script.
-  // We'll override loadLocal/saveLocal to sync with Firestore.
-  function safeRender(){ try{ if(typeof render === 'function') render(); }catch(e){ console.warn('render() not found yet'); } }
-
-  // Save MEDS array to Firestore, keeping localStorage for offline
   async function saveToCloud(){
     try{
-      // Keep local behavior for offline
       if(typeof window._origSaveLocal === 'function'){ window._origSaveLocal(); }
-      else if(typeof saveLocal === 'function'){ saveLocal(); } // in case we failed to wrap
-    }catch(e){ console.warn('local save failed', e); }
-
+      else if(typeof saveLocal === 'function'){ saveLocal(); }
+    }catch(e){ console.warn('[LOCAL SAVE] failed', e); }
     try{
       const user = auth.currentUser;
-      if(!user) return;
+      if(!user){ console.warn('[CLOUD SAVE] no user'); return; }
       const data = { items: (typeof MEDS !== 'undefined' ? MEDS : []), updatedAt: serverTimestamp() };
       await setDoc(docRefFor(user.uid), data, { merge: true });
+      console.log('[CLOUD SAVE] ok, items=', data.items?.length || 0);
     }catch(e){ showErr(e); }
   }
 
-  // Wrap original saveLocal
-  if(typeof saveLocal === 'function'){
-    window._origSaveLocal = saveLocal;
-    window.saveLocal = async function(){ await saveToCloud(); };
-  }
-
-  // Replace loadLocal to load from Firestore first, falling back to original
-  if(typeof loadLocal === 'function'){
-    window._origLoadLocal = loadLocal;
-    window.loadLocal = async function(){
-      try{
-        const user = auth.currentUser;
-        if(!user){ window._origLoadLocal(); safeRender(); return; }
-        const snap = await getDoc(docRefFor(user.uid));
-        if(snap.exists() && snap.data().items){
-          if(typeof MEDS !== 'undefined') MEDS = snap.data().items;
-        }else{
-          window._origLoadLocal(); // default meds or localStorage
-          // also upload initial set to cloud so it's ready next time
-          await saveToCloud();
+  const wrapPersistence = () => {
+    if(typeof saveLocal === 'function' && !window._origSaveLocal){
+      window._origSaveLocal = saveLocal;
+      window.saveLocal = async function(){ await saveToCloud(); };
+      console.log('[WRAP] saveLocal -> cloud+local');
+    }
+    if(typeof loadLocal === 'function' && !window._origLoadLocal){
+      window._origLoadLocal = loadLocal;
+      window.loadLocal = async function(){
+        try{
+          const user = auth.currentUser;
+          if(!user){ window._origLoadLocal(); safeRender(); return; }
+          const snap = await getDoc(docRefFor(user.uid));
+          if(snap.exists() && snap.data().items){
+            if(typeof MEDS !== 'undefined') MEDS = snap.data().items;
+            console.log('[CLOUD LOAD] items=', MEDS.length);
+          }else{
+            window._origLoadLocal();
+            await saveToCloud();
+            console.log('[CLOUD LOAD] no doc; seeded from local');
+          }
+          safeRender();
+        }catch(e){
+          console.warn('[CLOUD LOAD] failed; using local', e);
+          window._origLoadLocal(); safeRender();
         }
-        safeRender();
-      }catch(e){
-        console.warn('Cloud load failed, using local', e);
-        window._origLoadLocal(); safeRender();
-      }
-    };
-  }
+      };
+      console.log('[WRAP] loadLocal -> cloud-first');
+    }
+  };
 
   onAuthStateChanged(auth, (user)=>{
     clearErr();
     if(unsub){ unsub(); unsub = null; }
     if(!user){
       if(ui.status) ui.status.textContent = "Not signed in.";
-      // Use local data
       if(typeof window._origLoadLocal === 'function'){ window._origLoadLocal(); }
       else if(typeof loadLocal === 'function'){ loadLocal(); }
       safeRender();
       return;
     }
-    if(ui.status) ui.status.innerHTML = "Signed in. <span style='color:#065f46'>(Email/Password)</span>";
+    if(ui.status) ui.status.innerHTML = "Signed in as " + (user.email || user.uid);
 
-    // Live sync: whenever Firestore changes, update MEDS and render
     unsub = onSnapshot(docRefFor(user.uid), (snap)=>{
-      try{
-        if(snap.exists() && snap.data().items){
-          if(typeof MEDS !== 'undefined') MEDS = snap.data().items;
-          // Also write to localStorage so offline still works
-          if(typeof window._origSaveLocal === 'function'){ window._origSaveLocal(); }
-          safeRender();
-        }else if(!firstSyncDone){
-          // no cloud data yet; trigger a save of current local
-          saveToCloud();
-        }
-        firstSyncDone = true;
-      }catch(e){ showErr(e); }
+      if(snap.exists() && snap.data().items && typeof MEDS !== 'undefined'){
+        MEDS = snap.data().items;
+        try{ if(typeof window._origSaveLocal === 'function'){ window._origSaveLocal(); } }catch{}
+        safeRender();
+        console.log('[LIVE] updated from cloud, items=', MEDS.length);
+      }
     }, (err)=> showErr(err));
   });
 
-  // Kick off initial load after the original script defines functions
-  // If original loadLocal exists, call it (it will be our wrapper).
   window.addEventListener('load', ()=>{
-    setTimeout(()=>{ if(typeof loadLocal === 'function'){ loadLocal(); } else { safeRender(); } }, 0);
+    const t = setInterval(()=>{
+      wrapPersistence();
+      if(window._origLoadLocal && window._origSaveLocal){
+        clearInterval(t);
+        if(typeof loadLocal === 'function') loadLocal(); else safeRender();
+      }
+    }, 50);
+    setTimeout(()=>wrapPersistence(), 2000);
   });
 </script>
 
