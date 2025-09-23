@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Medication List (per user)</title>
+  <style>
+    body{font-family:system-ui,Arial,sans-serif;max-width:900px;margin:24px auto;padding:0 12px}
+    h1{font-size:20px;margin:0 0 12px}
+    .card{border:1px solid #e4e4e7;border-radius:12px;padding:12px;margin:12px 0}
+    .grid{display:grid;grid-template-columns:2fr 1fr 1fr 2fr auto;gap:8px}
+    input,button{padding:8px;border:1px solid #cbd5e1;border-radius:8px}
+    button{cursor:pointer}
+    ul{list-style:none;margin:0;padding:0}
+    li{border:1px solid #eee;border-radius:10px;padding:10px;margin:8px 0}
+    .row{display:grid;grid-template-columns:2fr 1fr 1fr 2fr auto;gap:8px;align-items:center}
+    .muted{color:#666;font-size:12px}
+    .actions button{margin-left:6px}
+    .error{color:#b91c1c;font-size:12px;margin-top:8px;display:none}
+    .ok{color:#065f46;font-size:12px}
+  </style>
+</head>
+<body>
+  <h1>Medication Database (saved to your account)</h1>
+  <div id="auth-status" class="muted">Connecting…</div>
+
+  <div class="card">
+    <div class="grid">
+      <input id="name" placeholder="Drug (e.g., Clopidogrel)" required />
+      <input id="dose" placeholder="Dose (e.g., 75 mg)" />
+      <input id="route" placeholder="Route (PO, IV…)" />
+      <input id="freq" placeholder="Frequency (daily, q6h…)" />
+      <button id="add-btn">Add</button>
+    </div>
+    <div class="muted" style="margin-top:8px">
+      Data is private to your sign-in. Anonymous sign-in is enabled by default.
+      <button id="signout-btn" style="float:right">Sign out</button>
+    </div>
+    <div id="err" class="error"></div>
+  </div>
+
+  <div class="card">
+    <strong>Your Medications</strong>
+    <ul id="list"></ul>
+  </div>
+
+  <!-- Firebase modular SDK. Keep 'type="module"'. If your console shows a different version, update all three URLs to the SAME version. -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signInAnonymously, signOut } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+    import {
+      getFirestore, collection, addDoc, doc, updateDoc, deleteDoc,
+      serverTimestamp, onSnapshot, query, orderBy
+    } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+
+    // 1) PASTE YOUR CONFIG from Firebase Console here (replace the placeholder values)
+    const firebaseConfig = {
+      apiKey: "AIzaSyB4SLwd4A3wNrstcHNzuI83z0G8e-1AK50",
+      authDomain: "nadia-b4de4.firebaseapp.com",
+      projectId: "nadia-b4de4",
+      storageBucket: "nadia-b4de4.firebasestorage.app",
+      messagingSenderId: "354468688054",
+      appId: "1:354468688054:web:9163d3700f3fd4c0097617"
+    };
+
+    // --- Do not edit below unless you know why ---
+    const app  = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db   = getFirestore(app);
+
+    const els = {
+      status: document.getElementById('auth-status'),
+      err: document.getElementById('err'),
+      addBtn: document.getElementById('add-btn'),
+      signout: document.getElementById('signout-btn'),
+      name: document.getElementById('name'),
+      dose: document.getElementById('dose'),
+      route: document.getElementById('route'),
+      freq: document.getElementById('freq'),
+      list: document.getElementById('list')
+    };
+
+    let uid = null;
+    let unsub = null;
+
+    function showError(e){
+      els.err.style.display = 'block';
+      els.err.textContent = e?.message || String(e);
+      console.error(e);
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+      try {
+        if (!user) {
+          await signInAnonymously(auth);
+          return;
+        }
+        uid = user.uid;
+        els.status.innerHTML = "Signed in <span class='ok'>(anonymous)</span>. Your data is private to you.";
+        const drugsCol = collection(db, `users/${uid}/drugs`);
+        const q = query(drugsCol, orderBy('createdAt', 'desc'));
+        if (unsub) unsub();
+        unsub = onSnapshot(q, (snap) => {
+          els.list.innerHTML = "";
+          if (snap.empty) {
+            const li = document.createElement('li');
+            li.textContent = "No medications yet. Add one above.";
+            els.list.appendChild(li);
+            return;
+          }
+          snap.forEach(docSnap => {
+            const d = docSnap.data();
+            const li = document.createElement('li');
+            li.className = 'row';
+            li.innerHTML = `
+              <div><strong>${d.name || ''}</strong></div>
+              <div>${d.dose || ''}</div>
+              <div>${d.route || ''}</div>
+              <div>${d.freq || ''}</div>
+              <div class="actions">
+                <button data-act="edit">Edit</button>
+                <button data-act="del">Delete</button>
+              </div>
+            `;
+            li.querySelector('[data-act="del"]').onclick = async () => {
+              try { await deleteDoc(doc(db, `users/${uid}/drugs/${docSnap.id}`)); }
+              catch(e){ showError(e); }
+            };
+            li.querySelector('[data-act="edit"]').onclick = async () => {
+              try {
+                const name = prompt("Drug name", d.name || "");
+                if (name === null) return;
+                const dose = prompt("Dose", d.dose || "");
+                if (dose === null) return;
+                const route = prompt("Route", d.route || "");
+                if (route === null) return;
+                const freq = prompt("Frequency", d.freq || "");
+                if (freq === null) return;
+                await updateDoc(doc(db, `users/${uid}/drugs/${docSnap.id}`), { name, dose, route, freq });
+              } catch(e){ showError(e); }
+            };
+            els.list.appendChild(li);
+          });
+        });
+      } catch(e){ showError(e); }
+    });
+
+    els.addBtn.onclick = async () => {
+      try {
+        const name = els.name.value.trim();
+        if (!name){ els.name.focus(); return; }
+        await addDoc(collection(db, `users/${uid}/drugs`), {
+          name,
+          dose: els.dose.value.trim(),
+          route: els.route.value.trim(),
+          freq: els.freq.value.trim(),
+          createdAt: serverTimestamp()
+        });
+        els.name.value = els.dose.value = els.route.value = els.freq.value = "";
+        els.name.focus();
+        els.err.style.display = 'none';
+      } catch(e){ showError(e); }
+    };
+
+    els.signout.onclick = async () => {
+      try { await signOut(auth); }
+      catch(e){ showError(e); }
+    };
+  </script>
+</body>
+</html>
