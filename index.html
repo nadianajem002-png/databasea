@@ -9,31 +9,50 @@
       --bg:#0e1324; --fg:#eaf0ff; --mut:#b8c0ea; --card:#161e3b; --line:#2b376d; --accent:#8ab4ff; --bad:#ff7a7a; --good:#7affba;
       --shadow:0 6px 18px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.02);
       --stripe: rgba(255,255,255,.02);
-      --radius:16px;
+      --radius:16px; --space:12px;
     }
     *{box-sizing:border-box}
-    body{margin:0;font:14px/1.5 system-ui,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--fg)}
+    body{margin:0;font:14px/1.55 system-ui,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--fg)}
     .wrap{max-width:1100px;margin:0 auto;padding:18px}
-    header{display:flex;align-items:center;gap:12px;justify-content:space-between;margin:2px 0 14px}
+    header{position:sticky;top:0;z-index:10;background:var(--bg);display:flex;align-items:center;gap:12px;justify-content:space-between;padding:10px 0 14px}
     h1{font-size:20px;margin:0}
     .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px}
     .btn{border:1px solid var(--line);background:transparent;color:var(--fg);padding:8px 12px;border-radius:12px;cursor:pointer}
-    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
+    .mut{color:var(--mut)}
+
+    /* Toolbar */
+    .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 12px}
+    .toolbar input[type="search"], .toolbar select {border:1px solid var(--line);background:transparent;color:var(--fg);padding:8px 10px;border-radius:12px}
+    .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:linear-gradient(180deg,var(--stripe),transparent);font-size:12px}
+    .chip input{accent-color:currentColor}
+
+    /* Grid / Grouping */
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
     @media (max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}}
     @media (max-width:620px){.grid{grid-template-columns:1fr}}
+
+    .group{margin:14px 0}
+    .group-head{display:flex;align-items:center;justify-content:space-between;margin:0 0 8px}
+    .group-title{font-weight:600;letter-spacing:.2px}
+
     .med-card{position:relative}
-    .toolbar{position:absolute;top:10px;right:10px;display:flex;gap:6px}
+    .med-title{font-weight:700;margin:0 0 6px;font-size:16px}
+    .rowline{margin:4px 0}
+    .route-tag{display:inline-block;border-radius:8px;padding:2px 8px;border:1px solid var(--line);font-size:12px}
+    .toolbar-compact{position:absolute;top:10px;right:10px;display:flex;gap:6px}
     .iconbtn{border:1px solid var(--line);background:transparent;color:var(--fg);padding:6px 8px;border-radius:10px;cursor:pointer}
+
+    .empty{opacity:.85;text-align:center;padding:18px;border:1px dashed var(--line);border-radius:var(--radius)}
   </style>
 </head>
 <body>
   <div class="wrap">
     <header>
       <h1>Medication Database</h1>
-      <div class="card" style="display:flex;gap:8px;align-items:center">
-        <span id="auth-status">Signed out</span>
-        <input id="auth-email" type="email" placeholder="email" />
-        <input id="auth-pass" type="password" placeholder="password" />
+      <div class="card" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span id="auth-status" class="mut">Signed out</span>
+        <input id="auth-email" type="email" placeholder="email" autocomplete="username" />
+        <input id="auth-pass" type="password" placeholder="password" autocomplete="current-password" />
         <button id="btn-signup" class="btn">Sign up</button>
         <button id="btn-signin" class="btn">Sign in</button>
         <button id="btn-signout" class="btn" style="display:none">Sign out</button>
@@ -44,20 +63,20 @@
     </header>
 
     <section class="card">
-      <h2>Add / Edit medication</h2>
-      <form id="med-form">
+      <h2 style="margin:0 0 8px;font-size:16px">Add / Edit medication</h2>
+      <form id="med-form" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">
         <input id="med-name" placeholder="Name" required />
-        <input id="med-route" placeholder="Route" />
+        <input id="med-route" placeholder="Route (PO, IV, IM, SC, patch, PR, topical, inhalation)" />
         <input id="med-class" placeholder="Class" />
-        <input id="med-dose" placeholder="Dose" />
-        <textarea id="med-indications" placeholder="Indications"></textarea>
-        <textarea id="med-contra" placeholder="Contraindications"></textarea>
-        <textarea id="med-lactation" placeholder="Pregnancy/Lactation notes"></textarea>
-        <textarea id="med-sidefx" placeholder="Side Effects"></textarea>
-        <textarea id="med-interactions" placeholder="Drug Interactions"></textarea>
-        <textarea id="med-monitoring" placeholder="Monitoring Parameters"></textarea>
-        <textarea id="med-notes" placeholder="Additional Notes"></textarea>
-        <div>
+        <input id="med-dose" placeholder="Dose (e.g., 500 mg BID)" />
+        <textarea id="med-indications" placeholder="Indications" style="grid-column:1/-1"></textarea>
+        <textarea id="med-contra" placeholder="Contraindications" style="grid-column:1/-1"></textarea>
+        <textarea id="med-lactation" placeholder="Pregnancy/Lactation notes" style="grid-column:1/-1"></textarea>
+        <textarea id="med-sidefx" placeholder="Side Effects" style="grid-column:1/-1"></textarea>
+        <textarea id="med-interactions" placeholder="Drug Interactions" style="grid-column:1/-1"></textarea>
+        <textarea id="med-monitoring" placeholder="Monitoring Parameters" style="grid-column:1/-1"></textarea>
+        <textarea id="med-notes" placeholder="Additional Notes" style="grid-column:1/-1"></textarea>
+        <div class="actions" style="grid-column:1/-1;display:flex;gap:10px;justify-content:flex-end">
           <button type="submit" class="btn">Save</button>
           <button type="button" id="btn-reset" class="btn">Reset</button>
         </div>
@@ -65,12 +84,27 @@
       </form>
     </section>
 
-    <section>
-      <div id="meds-grid" class="grid"></div>
+    <section style="margin-top:12px">
+      <!-- LIST TOOLBAR -->
+      <div class="card toolbar">
+        <input id="search" type="search" placeholder="Search name, class, indications, side effects…" style="min-width:260px">
+        <label class="chip"><input type="checkbox" class="route-filter" value="ALL" checked> All routes</label>
+        <span id="route-filters" class="mut" style="display:flex;gap:8px;flex-wrap:wrap"></span>
+        <select id="sort">
+          <option value="new">Newest</option>
+          <option value="az">A → Z</option>
+          <option value="class">Class</option>
+        </select>
+        <label class="chip"><input type="checkbox" id="group-toggle"> Group by route</label>
+      </div>
+
+      <div id="list-container"></div>
+      <div id="empty-state" class="empty" style="display:none">No medications yet. Add your first above.</div>
     </section>
   </div>
 
   <script type="module">
+    // Firebase
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
     import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
     import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
@@ -88,35 +122,92 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
+    // DOM helpers
     const $ = sel => document.querySelector(sel);
-    const gridEl = $("#meds-grid");
-    const idEl = $("#med-id");
+    const listContainer = $("#list-container");
+    const emptyEl = $("#empty-state");
 
     const inputIds = ["#med-name","#med-route","#med-class","#med-dose","#med-indications","#med-contra","#med-lactation","#med-sidefx","#med-interactions","#med-monitoring","#med-notes"];
     const inputs = Object.fromEntries(inputIds.map(id=>[id,$(id)]));
+    const idEl = $("#med-id");
 
-    function clearForm(){Object.values(inputs).forEach(i=>i.value="");idEl.value="";}
-
+    // Auth
     const btnUp = $("#btn-signup"), btnIn = $("#btn-signin"), btnOut = $("#btn-signout"), statusEl=$("#auth-status"), emailEl=$("#auth-email"), passEl=$("#auth-pass");
     btnUp.onclick=()=>createUserWithEmailAndPassword(auth,emailEl.value,passEl.value).catch(e=>alert(e.message));
     btnIn.onclick=()=>signInWithEmailAndPassword(auth,emailEl.value,passEl.value).catch(e=>alert(e.message));
     btnOut.onclick=()=>signOut(auth);
 
-    let unsub=null;
+    // Filters / Search / Sort
+    const searchEl = $("#search");
+    const sortEl = $("#sort");
+    const groupToggle = $("#group-toggle");
+    const routeFiltersWrap = $("#route-filters");
+
+    const ROUTE_COLORS = {
+      PO:'#8ab4ff', IV:'#7affba', IM:'#ffd166', SC:'#f78da7', PATCH:'#b4a0ff', PR:'#a0e7e5', TOPICAL:'#ffadad', INHALATION:'#9bf6ff', SL:'#caffbf', SUBLINGUAL:'#caffbf'
+    };
+
+    function routeKey(str){
+      const v=(str||'').toString().trim().toUpperCase();
+      if(v==='SL') return 'SUBLEGEND';
+      // normalize common synonyms
+      if(v==='INH') return 'INHALATION';
+      return v;
+    }
+
+    // Build route filter chips
+    function buildRouteChips(routes){
+      routeFiltersWrap.innerHTML='';
+      for(const r of routes){
+        const color = ROUTE_COLORS[r] || '#b8c0ea';
+        const label = document.createElement('label');
+        label.className='chip';
+        label.style.borderColor = color;
+        label.style.color = color;
+        label.innerHTML = `<input type="checkbox" class="route-filter" value="${r}" checked> ${r}`;
+        routeFiltersWrap.appendChild(label);
+      }
+    }
+
+    // State
+    let unsub=null; let allMeds=[]; let activeRoutes=new Set();
+
     onAuthStateChanged(auth,user=>{
       if(user){
         statusEl.textContent=`Signed in as ${user.email}`;
         btnOut.style.display=''; btnUp.style.display=btnIn.style.display='none'; emailEl.style.display=passEl.style.display='none';
         const medsRef=collection(db,`users/${user.uid}/medications`);
         const q=query(medsRef,orderBy('createdAt','desc'));
-        if(unsub)unsub(); unsub=onSnapshot(q,snap=>{renderMeds(snap.docs.map(d=>({id:d.id,...d.data()})));});
+        if(unsub)unsub();
+        unsub=onSnapshot(q,snap=>{
+          allMeds = snap.docs.map(d=>({id:d.id,...d.data()}));
+          // Build route filters from data
+          const routes = Array.from(new Set(allMeds.map(m=>routeKey(m.route)).filter(Boolean))).sort();
+          buildRouteChips(routes);
+          activeRoutes = new Set(routes);
+          render();
+          // attach listeners (after chips exist)
+          routeFiltersWrap.querySelectorAll('.route-filter').forEach(cb=>{
+            cb.addEventListener('change',()=>{
+              if(cb.value==='ALL'){
+                const check = cb.checked;
+                routeFiltersWrap.querySelectorAll('.route-filter').forEach(x=>x.checked=check);
+                activeRoutes = new Set(check?routes:[]);
+              } else {
+                if(cb.checked) activeRoutes.add(cb.value); else activeRoutes.delete(cb.value);
+              }
+              render();
+            });
+          });
+        });
       } else {
         statusEl.textContent='Signed out';
         btnOut.style.display='none'; btnUp.style.display=btnIn.style.display=''; emailEl.style.display=passEl.style.display='';
-        if(unsub){unsub(); unsub=null;} renderMeds([]);
+        if(unsub){unsub(); unsub=null;} allMeds=[]; routeFiltersWrap.innerHTML=''; render();
       }
     });
 
+    // Form submit
     $("#med-form").addEventListener('submit',async e=>{
       e.preventDefault(); const user=auth.currentUser; if(!user)return alert('Sign in first.');
       const payload={}; inputIds.forEach(id=>payload[id.slice(5)]=inputs[id].value.trim()); payload.createdAt=serverTimestamp(); payload.updatedAt=serverTimestamp();
@@ -124,19 +215,96 @@
     });
     $("#btn-reset").onclick=clearForm;
 
+    function clearForm(){Object.values(inputs).forEach(i=>i.value="");idEl.value="";}
+
     async function handleDelete(id){const user=auth.currentUser;if(!user)return;if(!confirm('Delete?'))return;await deleteDoc(doc(db,`users/${user.uid}/medications/${id}`));}
     function handleEdit(m){idEl.value=m.id; for(const id of inputIds){inputs[id].value=m[id.slice(5)]||'';} window.scrollTo({top:0,behavior:'smooth'});}
 
-    function renderMeds(meds){gridEl.innerHTML=''; for(const m of meds){const el=document.createElement('div'); el.className='card med-card'; el.innerHTML=`<div class="toolbar"><button class="iconbtn" data-edit>✎</button><button class="iconbtn" data-del>🗑</button></div><div><strong>${escapeHTML(m.name||'(unnamed)')}</strong></div><div>${escapeHTML(m.class||'')}</div><div>${escapeHTML(m.route||'')} ${escapeHTML(m.dose||'')}</div><div>Indications: ${escapeHTML(m.indications||'')}</div><div>Contraindications: ${escapeHTML(m.contra||'')}</div><div>Lactation: ${escapeHTML(m.lactation||'')}</div><div>Sidefx: ${escapeHTML(m.sidefx||'')}</div><div>Interactions: ${escapeHTML(m.interactions||'')}</div><div>Monitoring: ${escapeHTML(m.monitoring||'')}</div><div>Notes: ${escapeHTML(m.notes||'')}</div>`; el.querySelector('[data-edit]').onclick=()=>handleEdit(m); el.querySelector('[data-del]').onclick=()=>handleDelete(m.id); gridEl.appendChild(el);} }
+    // Search / sort helpers
+    function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}}
+    searchEl.addEventListener('input',debounce(()=>render(),150));
+    sortEl.addEventListener('change',()=>render());
+    groupToggle.addEventListener('change',()=>render());
+
+    function filtered(){
+      const q=(searchEl.value||'').toLowerCase();
+      let list = allMeds.slice();
+      if(q){
+        list = list.filter(m=>{
+          const hay = `${m.name||''} ${m.class||''} ${m.indications||''} ${m.sidefx||''}`.toLowerCase();
+          return hay.includes(q);
+        });
+      }
+      if(activeRoutes && activeRoutes.size){
+        list = list.filter(m=>!routeFiltersWrap.children.length || activeRoutes.has(routeKey(m.route)));
+      }
+      const mode = sortEl.value;
+      if(mode==='az') list.sort((a,b)=> (a.name||'').localeCompare(b.name||''));
+      else if(mode==='class') list.sort((a,b)=> (a.class||'').localeCompare(b.class||''));
+      // newest is default coming from Firestore order
+      return list;
+    }
+
+    function render(){
+      const meds = filtered();
+      emptyEl.style.display = meds.length ? 'none' : '';
+      listContainer.innerHTML='';
+      if(groupToggle.checked){
+        // group by route
+        const groups = {};
+        for(const m of meds){
+          const r = routeKey(m.route)||'UNKNOWN';
+          (groups[r] ||= []).push(m);
+        }
+        for(const r of Object.keys(groups).sort()){
+          const color = ROUTE_COLORS[r] || '#b8c0ea';
+          const g = document.createElement('div'); g.className='group';
+          g.innerHTML = `<div class="group-head"><div class="group-title" style="color:${color}">● ${r}</div><span class="mut">${groups[r].length} med(s)</span></div>`;
+          const grid = document.createElement('div'); grid.className = 'grid';
+          for(const m of groups[r]) grid.appendChild(renderCard(m));
+          g.appendChild(grid);
+          listContainer.appendChild(g);
+        }
+      } else {
+        const grid = document.createElement('div'); grid.className = 'grid';
+        for(const m of meds) grid.appendChild(renderCard(m));
+        listContainer.appendChild(grid);
+      }
+    }
+
+    function renderCard(m){
+      const rKey = routeKey(m.route);
+      const color = ROUTE_COLORS[rKey] || '#b8c0ea';
+      const el = document.createElement('div'); el.className='card med-card';
+      el.innerHTML = `
+        <div class="toolbar-compact">
+          <button class="iconbtn" data-edit title="Edit">✎</button>
+          <button class="iconbtn" data-del title="Delete">🗑</button>
+        </div>
+        <div class="med-title">${escapeHTML(m.name || '(unnamed)')}</div>
+        <div class="rowline mut">${escapeHTML(m.class || '')}</div>
+        <div class="rowline"><span class="route-tag" style="border-color:${color};color:${color}">${escapeHTML(m.route || '')}</span> ${escapeHTML(m.dose || '')}</div>
+        <div class="rowline"><strong>Indications:</strong> ${escapeHTML(m.indications || '')}</div>
+        <div class="rowline"><strong>Contraindications:</strong> ${escapeHTML(m.contraindications || m.contra || '')}</div>
+        <div class="rowline"><strong>Lactation:</strong> ${escapeHTML(m.lactation || '')}</div>
+        <div class="rowline"><strong>Side effects:</strong> ${escapeHTML(m.sidefx || '')}</div>
+        ${m.interactions?`<div class="rowline"><strong>Interactions:</strong> ${escapeHTML(m.interactions)}</div>`:''}
+        ${m.monitoring?`<div class="rowline"><strong>Monitoring:</strong> ${escapeHTML(m.monitoring)}</div>`:''}
+        ${m.notes?`<div class="rowline"><strong>Notes:</strong> ${escapeHTML(m.notes)}</div>`:''}
+      `;
+      el.querySelector('[data-edit]').onclick=()=>handleEdit(m);
+      el.querySelector('[data-del]').onclick=()=>handleDelete(m.id);
+      return el;
+    }
 
     function escapeHTML(str){return(str||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;','\'':'&#039;'}[c]));}
 
     // Import / Export
     const btnExport=$("#btn-export"),btnImport=$("#btn-import"),fileImport=$("#file-import");
-    btnExport.onclick=exportMeds; btnImport.onclick=()=>fileImport.click(); fileImport.onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const text=await f.text();const parsed=JSON.parse(text);await importMeds(parsed);alert('Import complete');}catch(err){alert('Import failed:'+err.message);}fileImport.value='';};
-    async function exportMeds(){const user=auth.currentUser;if(!user)return alert('Sign in first.');const medsSnap=await getDocs(collection(db,`users/${user.uid}/medications`));const meds=medsSnap.docs.map(d=>({id:d.id,...d.data()}));const blob=new Blob([JSON.stringify(meds,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`meds-${user.uid}.json`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}
+    btnExport.onclick=exportMeds; btnImport.onclick=()=>fileImport.click(); fileImport.onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const text=await f.text();const parsed=JSON.parse(text);await importMeds(parsed);alert('Import complete');}catch(err){alert('Import failed: '+(err?.message||err));}fileImport.value='';};
+    async function exportMeds(){const user=auth.currentUser;if(!user)return alert('Sign in first.');const medsSnap=await getDocs(collection(db,`users/${user.uid}/medications`));const meds=medsSnap.docs.map(d=>({id:d.id,...d.data()}));const blob=new Blob([JSON.stringify(meds,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`meds-${user.uid}-${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}
     async function importMeds(data){const user=auth.currentUser;if(!user)return alert('Sign in first.');const items=Array.isArray(data)?data:(Array.isArray(data?.medications)?data.medications:null);if(!items)throw new Error('Invalid JSON');const batch=writeBatch(db);for(const raw of items){const m=normalizeMed(raw);const ref=doc(collection(db,`users/${user.uid}/medications`));batch.set(ref,{...m,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});}await batch.commit();}
-    function normalizeMed(o){return {name:o.name||'',route:o.route||'',class:o.class||'',dose:o.dose||'',indications:o.indications||'',contra:o.contraindications||o.contra||'',lactation:o.lactation||'',sidefx:o.sidefx||'',interactions:o.interactions||'',monitoring:o.monitoring||'',notes:o.notes||''}};
+    function normalizeMed(o){return {name:o.name||o.title||'',route:o.route||'',class:o.class||o.drugClass||'',dose:o.dose||o.dosage||'',indications:o.indications||o.uses||'',contraindications:o.contraindications||o.contra||'',lactation:o.lactation||o.pregnancy||o.pregnancyLactation||'',sidefx:o.sidefx||o.sideEffects||o.adverse||'',interactions:o.interactions||'',monitoring:o.monitoring||'',notes:o.notes||''}};
   </script>
 </body>
 </html>
