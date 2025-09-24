@@ -4,133 +4,77 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Personal Medication Database (Per‑User)</title>
-  <!--
-    This file is a DROP‑IN REPLACEMENT you can commit to GitHub Pages.
-    ✅ Per‑user data isolation (Firestore: users/{uid}/medications)
-    ✅ Email/password auth (client‑side)
-    ✅ Keeps your dark/light variable look and card layout similar to your original
-    ✅ Works on static hosting (GitHub Pages) — no server needed
-
-    HOW TO USE:
-    1) Replace the firebaseConfig object below with YOURS (already filled in from your message).
-    2) If you already have a page design, keep your HTML/CSS and paste ONLY the <script type="module"> block at the bottom.
-       Make sure your inputs have the IDs referenced below (see the comment near the form) OR update the selectors in JS.
-    3) Commit to GitHub → Settings → Pages → Build from main (/root) or /docs folder.
-    4) In Firebase Console → Build → Firestore Database → RULES: use the rules provided below this file in the Chat.
-  -->
   <style>
-    /* ========================= THEME & TYPOGRAPHY ========================= */
     :root{
       --bg:#0e1324; --fg:#eaf0ff; --mut:#b8c0ea; --card:#161e3b; --line:#2b376d; --accent:#8ab4ff; --bad:#ff7a7a; --good:#7affba;
       --shadow:0 6px 18px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.02);
       --stripe: rgba(255,255,255,.02);
       --radius:16px;
     }
-    [data-theme="light"]{
-      --bg:#f7f9ff; --fg:#0a1229; --mut:#47507a; --card:#ffffff; --line:#dfe5ff; --accent:#315efb; --bad:#d43d3d; --good:#0f9960;
-      --shadow:0 6px 18px rgba(10,18,41,.08);
-      --stripe: rgba(0,0,0,.02);
-    }
     *{box-sizing:border-box}
-    html,body{height:100%}
     body{margin:0;font:14px/1.5 system-ui,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--fg)}
-    a{color:var(--accent)}
-
-    /* ========================= LAYOUT ========================= */
     .wrap{max-width:1100px;margin:0 auto;padding:18px}
     header{display:flex;align-items:center;gap:12px;justify-content:space-between;margin:2px 0 14px}
     h1{font-size:20px;margin:0}
-    .row{display:flex;gap:12px;flex-wrap:wrap}
-
     .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px}
-
-    /* ========================= AUTH WIDGET ========================= */
-    .auth{display:flex;align-items:center;gap:10px}
-    .auth input{border:1px solid var(--line);background:transparent;color:var(--fg);padding:8px 10px;border-radius:12px}
-    .auth button{border:1px solid var(--line);background:transparent;color:var(--fg);padding:8px 12px;border-radius:12px;cursor:pointer}
-    .auth .who{opacity:.9}
-
-    /* ========================= FORM ========================= */
-    form#med-form{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
-    form#med-form input, form#med-form textarea{width:100%;border:1px solid var(--line);background:transparent;color:var(--fg);padding:10px;border-radius:12px}
-    form#med-form textarea{grid-column:1/-1;min-height:80px}
-    form#med-form .actions{grid-column:1/-1;display:flex;gap:10px;justify-content:flex-end}
-    .btn{border:1px solid var(--line);background:transparent;color:var(--fg);padding:10px 14px;border-radius:12px;cursor:pointer}
-
-    /* ========================= GRID ========================= */
+    .btn{border:1px solid var(--line);background:transparent;color:var(--fg);padding:8px 12px;border-radius:12px;cursor:pointer}
     .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
     @media (max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}}
     @media (max-width:620px){.grid{grid-template-columns:1fr}}
-
     .med-card{position:relative}
-    .med-title{font-weight:600;margin:0 0 8px;font-size:16px}
-    .mut{color:var(--mut);font-size:12px}
-    .rowline{margin:4px 0}
-    .pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:2px 8px;margin-right:6px}
     .toolbar{position:absolute;top:10px;right:10px;display:flex;gap:6px}
     .iconbtn{border:1px solid var(--line);background:transparent;color:var(--fg);padding:6px 8px;border-radius:10px;cursor:pointer}
-
-    .empty{opacity:.8;text-align:center;padding:18px;border:1px dashed var(--line);border-radius:var(--radius)}
   </style>
 </head>
 <body>
   <div class="wrap">
     <header>
       <h1>Medication Database</h1>
-      <div class="auth card">
-        <span id="auth-status" class="who mut">Signed out</span>
-        <input id="auth-email" type="email" placeholder="email" autocomplete="username" />
-        <input id="auth-pass" type="password" placeholder="password" autocomplete="current-password" />
-        <button id="btn-signup" title="Create account">Sign up</button>
-        <button id="btn-signin" title="Sign in">Sign in</button>
-        <button id="btn-signout" title="Sign out" style="display:none">Sign out</button>
-      </div>
-          <div class="row" style="gap:8px">
-        <button id="btn-export" class="btn" title="Export my meds as JSON">Export JSON</button>
-        <button id="btn-import" class="btn" title="Import meds from JSON">Import JSON</button>
+      <div class="card" style="display:flex;gap:8px;align-items:center">
+        <span id="auth-status">Signed out</span>
+        <input id="auth-email" type="email" placeholder="email" />
+        <input id="auth-pass" type="password" placeholder="password" />
+        <button id="btn-signup" class="btn">Sign up</button>
+        <button id="btn-signin" class="btn">Sign in</button>
+        <button id="btn-signout" class="btn" style="display:none">Sign out</button>
+        <button id="btn-export" class="btn">Export JSON</button>
+        <button id="btn-import" class="btn">Import JSON</button>
         <input id="file-import" type="file" accept="application/json" style="display:none" />
       </div>
     </header>
 
-    <!--
-      If you already have a form in your HTML, you can:
-      - Keep your form & CSS
-      - Ensure your inputs have these IDs (or tweak selectors in JS below):
-        #med-name, #med-route, #med-class, #med-dose, #med-indications, #med-contra, #med-lactation, #med-sidefx
-    -->
     <section class="card">
-      <h2 style="margin:0 0 8px;font-size:16px">Add / Edit medication</h2>
+      <h2>Add / Edit medication</h2>
       <form id="med-form">
-        <input id="med-name" placeholder="Name (e.g., Amoxicillin)" required />
-        <input id="med-route" placeholder="Route (e.g., PO, IV, patch)" />
-        <input id="med-class" placeholder="Class (e.g., antibiotic)" />
-        <input id="med-dose" placeholder="Dose (e.g., 500 mg BID)" />
+        <input id="med-name" placeholder="Name" required />
+        <input id="med-route" placeholder="Route" />
+        <input id="med-class" placeholder="Class" />
+        <input id="med-dose" placeholder="Dose" />
         <textarea id="med-indications" placeholder="Indications"></textarea>
         <textarea id="med-contra" placeholder="Contraindications"></textarea>
         <textarea id="med-lactation" placeholder="Pregnancy/Lactation notes"></textarea>
-        <textarea id="med-sidefx" placeholder="Common Side Effects"></textarea>
-        <div class="actions">
-          <button type="submit" class="btn" id="btn-save">Save</button>
-          <button type="button" class="btn" id="btn-reset">Reset</button>
+        <textarea id="med-sidefx" placeholder="Side Effects"></textarea>
+        <textarea id="med-interactions" placeholder="Drug Interactions"></textarea>
+        <textarea id="med-monitoring" placeholder="Monitoring Parameters"></textarea>
+        <textarea id="med-notes" placeholder="Additional Notes"></textarea>
+        <div>
+          <button type="submit" class="btn">Save</button>
+          <button type="button" id="btn-reset" class="btn">Reset</button>
         </div>
         <input type="hidden" id="med-id" />
       </form>
     </section>
 
-    <section style="margin-top:12px">
+    <section>
       <div id="meds-grid" class="grid"></div>
-      <div id="empty-state" class="empty" style="display:none">No medications yet. Add your first above.</div>
     </section>
   </div>
 
-  <!-- ========================= APP SCRIPT ========================= -->
   <script type="module">
-    // ========================= Firebase (modular SDK) =========================
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
     import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
     import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
 
-    // Your web app's Firebase configuration (from your message)
     const firebaseConfig = {
       apiKey: "AIzaSyB4SLwd4A3wNrstcHNzuI83z0G8e-1AK50",
       authDomain: "nadia-b4de4.firebaseapp.com",
@@ -144,222 +88,55 @@
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // ========================= DOM helpers =========================
-    const $ = (sel) => document.querySelector(sel);
+    const $ = sel => document.querySelector(sel);
     const gridEl = $("#meds-grid");
-    const emptyEl = $("#empty-state");
-
-    const inputIds = [
-      "#med-name","#med-route","#med-class","#med-dose",
-      "#med-indications","#med-contra","#med-lactation","#med-sidefx"
-    ];
-    const inputs = Object.fromEntries(inputIds.map(id => [id, $(id)]));
-
     const idEl = $("#med-id");
 
-    function clearForm(){
-      Object.values(inputs).forEach(i => i.value = "");
-      idEl.value = "";
-    }
+    const inputIds = ["#med-name","#med-route","#med-class","#med-dose","#med-indications","#med-contra","#med-lactation","#med-sidefx","#med-interactions","#med-monitoring","#med-notes"];
+    const inputs = Object.fromEntries(inputIds.map(id=>[id,$(id)]));
 
-    // ========================= Auth UI =========================
-    const emailEl = $("#auth-email");
-    const passEl = $("#auth-pass");
-    const statusEl = $("#auth-status");
-    const btnUp = $("#btn-signup");
-    const btnIn = $("#btn-signin");
-    const btnOut = $("#btn-signout");
+    function clearForm(){Object.values(inputs).forEach(i=>i.value="");idEl.value="";}
 
-    btnUp.addEventListener('click', async () => {
-      try{
-        await createUserWithEmailAndPassword(auth, emailEl.value, passEl.value);
-      }catch(e){ alert(e.message); }
-    });
-    btnIn.addEventListener('click', async () => {
-      try{
-        await signInWithEmailAndPassword(auth, emailEl.value, passEl.value);
-      }catch(e){ alert(e.message); }
-    });
-    btnOut.addEventListener('click', async () => {
-      await signOut(auth);
-    });
+    const btnUp = $("#btn-signup"), btnIn = $("#btn-signin"), btnOut = $("#btn-signout"), statusEl=$("#auth-status"), emailEl=$("#auth-email"), passEl=$("#auth-pass");
+    btnUp.onclick=()=>createUserWithEmailAndPassword(auth,emailEl.value,passEl.value).catch(e=>alert(e.message));
+    btnIn.onclick=()=>signInWithEmailAndPassword(auth,emailEl.value,passEl.value).catch(e=>alert(e.message));
+    btnOut.onclick=()=>signOut(auth);
 
-    let unsub = null; // meds listener
-
-    // ========================= Import / Export =========================
-    const btnExport = document.querySelector('#btn-export');
-    const btnImport = document.querySelector('#btn-import');
-    const fileImport = document.querySelector('#file-import');
-
-    btnExport.addEventListener('click', exportMeds);
-    btnImport.addEventListener('click', () => fileImport.click());
-    fileImport.addEventListener('change', async (e) => {
-      const file = e.target.files?.[0];
-      if(!file) return;
-      try{
-        const text = await file.text();
-        const parsed = JSON.parse(text);
-        await importMeds(parsed);
-        alert('Import complete.');
-      }catch(err){
-        alert('Import failed: ' + (err?.message || err));
-      } finally {
-        fileImport.value = '';
-      }
-    });
-
-    async function exportMeds(){
-      const user = auth.currentUser;
-      if(!user) return alert('Sign in to export your medications.');
-      const medsSnap = await getDocs(collection(db, `users/${user.uid}/medications`));
-      const meds = medsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      const blob = new Blob([JSON.stringify(meds, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `meds-${user.uid}-${new Date().toISOString().slice(0,10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-    }
-
-    async function importMeds(data){
-      const user = auth.currentUser;
-      if(!user) return alert('Sign in to import medications.');
-      // Accept array or {medications:[...]} shapes
-      const items = Array.isArray(data) ? data : (Array.isArray(data?.medications) ? data.medications : null);
-      if(!items) throw new Error('JSON must be an array of meds or an object with a "medications" array.');
-
-      const batch = writeBatch(db);
-      const basePath = `users/${user.uid}/medications`;
-      for(const raw of items){
-        const m = normalizeMed(raw);
-        const ref = doc(collection(db, basePath));
-        batch.set(ref, { ...m, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
-      }
-      await batch.commit();
-    }
-
-    function normalizeMed(o){
-      // Map a few common variants so older exports/imports still work
-      return {
-        name: o.name ?? o.title ?? '',
-        route: o.route ?? '',
-        class: o.class ?? o.drugClass ?? '',
-        dose: o.dose ?? o.dosage ?? '',
-        indications: o.indications ?? o.uses ?? '',
-        contraindications: o.contraindications ?? o.contra ?? '',
-        lactation: o.lactation ?? o.pregnancy ?? o.pregnancyLactation ?? '',
-        sidefx: o.sidefx ?? o.sideEffects ?? o.adverse ?? ''
-      };
-    }
-
-    onAuthStateChanged(auth, (user) => {
+    let unsub=null;
+    onAuthStateChanged(auth,user=>{
       if(user){
-        statusEl.textContent = `Signed in as ${user.email}`;
-        btnOut.style.display = '';
-        btnUp.style.display = btnIn.style.display = 'none';
-        emailEl.style.display = passEl.style.display = 'none';
-
-        // Attach a listener to *this* user's meds
-        const medsRef = collection(db, `users/${user.uid}/medications`);
-        const q = query(medsRef, orderBy('createdAt','desc'));
-        if(unsub) unsub();
-        unsub = onSnapshot(q, (snap) => {
-          const meds = snap.docs.map(d => ({ id:d.id, ...d.data() }));
-          renderMeds(meds);
-        });
+        statusEl.textContent=`Signed in as ${user.email}`;
+        btnOut.style.display=''; btnUp.style.display=btnIn.style.display='none'; emailEl.style.display=passEl.style.display='none';
+        const medsRef=collection(db,`users/${user.uid}/medications`);
+        const q=query(medsRef,orderBy('createdAt','desc'));
+        if(unsub)unsub(); unsub=onSnapshot(q,snap=>{renderMeds(snap.docs.map(d=>({id:d.id,...d.data()})));});
       } else {
-        statusEl.textContent = 'Signed out';
-        btnOut.style.display = 'none';
-        btnUp.style.display = btnIn.style.display = '';
-        emailEl.style.display = passEl.style.display = '';
-        if(unsub){ unsub(); unsub = null; }
-        renderMeds([]);
+        statusEl.textContent='Signed out';
+        btnOut.style.display='none'; btnUp.style.display=btnIn.style.display=''; emailEl.style.display=passEl.style.display='';
+        if(unsub){unsub(); unsub=null;} renderMeds([]);
       }
     });
 
-    // ========================= CRUD =========================
-    $("#med-form").addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const user = auth.currentUser;
-      if(!user){ return alert('Please sign in to save.'); }
-
-      const payload = {
-        name: inputs["#med-name"].value.trim(),
-        route: inputs["#med-route"].value.trim(),
-        class: inputs["#med-class"].value.trim(),
-        dose: inputs["#med-dose"].value.trim(),
-        indications: inputs["#med-indications"].value.trim(),
-        contraindications: inputs["#med-contra"].value.trim(),
-        lactation: inputs["#med-lactation"].value.trim(),
-        sidefx: inputs["#med-sidefx"].value.trim(),
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
-
-      try{
-        if(idEl.value){
-          await updateDoc(doc(db, `users/${user.uid}/medications/${idEl.value}`), payload);
-        }else{
-          await addDoc(collection(db, `users/${user.uid}/medications`), payload);
-        }
-        clearForm();
-      }catch(err){
-        alert(err.message);
-      }
+    $("#med-form").addEventListener('submit',async e=>{
+      e.preventDefault(); const user=auth.currentUser; if(!user)return alert('Sign in first.');
+      const payload={}; inputIds.forEach(id=>payload[id.slice(5)]=inputs[id].value.trim()); payload.createdAt=serverTimestamp(); payload.updatedAt=serverTimestamp();
+      try{ if(idEl.value){await updateDoc(doc(db,`users/${user.uid}/medications/${idEl.value}`),payload);} else {await addDoc(collection(db,`users/${user.uid}/medications`),payload);} clearForm(); }catch(err){alert(err.message)}
     });
+    $("#btn-reset").onclick=clearForm;
 
-    $("#btn-reset").addEventListener('click', clearForm);
+    async function handleDelete(id){const user=auth.currentUser;if(!user)return;if(!confirm('Delete?'))return;await deleteDoc(doc(db,`users/${user.uid}/medications/${id}`));}
+    function handleEdit(m){idEl.value=m.id; for(const id of inputIds){inputs[id].value=m[id.slice(5)]||'';} window.scrollTo({top:0,behavior:'smooth'});}
 
-    async function handleDelete(id){
-      const user = auth.currentUser; if(!user) return;
-      if(!confirm('Delete this medication?')) return;
-      await deleteDoc(doc(db, `users/${user.uid}/medications/${id}`));
-    }
+    function renderMeds(meds){gridEl.innerHTML=''; for(const m of meds){const el=document.createElement('div'); el.className='card med-card'; el.innerHTML=`<div class="toolbar"><button class="iconbtn" data-edit>✎</button><button class="iconbtn" data-del>🗑</button></div><div><strong>${escapeHTML(m.name||'(unnamed)')}</strong></div><div>${escapeHTML(m.class||'')}</div><div>${escapeHTML(m.route||'')} ${escapeHTML(m.dose||'')}</div><div>Indications: ${escapeHTML(m.indications||'')}</div><div>Contraindications: ${escapeHTML(m.contra||'')}</div><div>Lactation: ${escapeHTML(m.lactation||'')}</div><div>Sidefx: ${escapeHTML(m.sidefx||'')}</div><div>Interactions: ${escapeHTML(m.interactions||'')}</div><div>Monitoring: ${escapeHTML(m.monitoring||'')}</div><div>Notes: ${escapeHTML(m.notes||'')}</div>`; el.querySelector('[data-edit]').onclick=()=>handleEdit(m); el.querySelector('[data-del]').onclick=()=>handleDelete(m.id); gridEl.appendChild(el);} }
 
-    function handleEdit(med){
-      idEl.value = med.id;
-      inputs["#med-name"].value = med.name || '';
-      inputs["#med-route"].value = med.route || '';
-      inputs["#med-class"].value = med.class || '';
-      inputs["#med-dose"].value = med.dose || '';
-      inputs["#med-indications"].value = med.indications || '';
-      inputs["#med-contra"].value = med.contraindications || '';
-      inputs["#med-lactation"].value = med.lactation || '';
-      inputs["#med-sidefx"].value = med.sidefx || '';
-      window.scrollTo({top:0, behavior:'smooth'});
-    }
+    function escapeHTML(str){return(str||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;','\'':'&#039;'}[c]));}
 
-    function renderMeds(meds){
-      gridEl.innerHTML = '';
-      emptyEl.style.display = meds.length ? 'none' : '';
-      for(const m of meds){
-        const el = document.createElement('div');
-        el.className = 'card med-card';
-        el.innerHTML = `
-          <div class="toolbar">
-            <button class="iconbtn" data-edit>✎</button>
-            <button class="iconbtn" data-del>🗑</button>
-          </div>
-          <div class="med-title">${escapeHTML(m.name || '(unnamed)')}</div>
-          <div class="rowline mut">${escapeHTML(m.class || '')}</div>
-          <div class="rowline"><span class="pill">${escapeHTML(m.route || '')}</span> ${escapeHTML(m.dose || '')}</div>
-          <div class="rowline"><strong>Indications:</strong> ${escapeHTML(m.indications || '')}</div>
-          <div class="rowline"><strong>Contraindications:</strong> ${escapeHTML(m.contraindications || '')}</div>
-          <div class="rowline"><strong>Lactation:</strong> ${escapeHTML(m.lactation || '')}</div>
-          <div class="rowline"><strong>Side effects:</strong> ${escapeHTML(m.sidefx || '')}</div>
-        `;
-        el.querySelector('[data-edit]').addEventListener('click', () => handleEdit(m));
-        el.querySelector('[data-del]').addEventListener('click', () => handleDelete(m.id));
-        gridEl.appendChild(el);
-      }
-    }
-
-    function escapeHTML(str){
-      return (str||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#039;'}[c]));
-    }
+    // Import / Export
+    const btnExport=$("#btn-export"),btnImport=$("#btn-import"),fileImport=$("#file-import");
+    btnExport.onclick=exportMeds; btnImport.onclick=()=>fileImport.click(); fileImport.onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const text=await f.text();const parsed=JSON.parse(text);await importMeds(parsed);alert('Import complete');}catch(err){alert('Import failed:'+err.message);}fileImport.value='';};
+    async function exportMeds(){const user=auth.currentUser;if(!user)return alert('Sign in first.');const medsSnap=await getDocs(collection(db,`users/${user.uid}/medications`));const meds=medsSnap.docs.map(d=>({id:d.id,...d.data()}));const blob=new Blob([JSON.stringify(meds,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`meds-${user.uid}.json`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}
+    async function importMeds(data){const user=auth.currentUser;if(!user)return alert('Sign in first.');const items=Array.isArray(data)?data:(Array.isArray(data?.medications)?data.medications:null);if(!items)throw new Error('Invalid JSON');const batch=writeBatch(db);for(const raw of items){const m=normalizeMed(raw);const ref=doc(collection(db,`users/${user.uid}/medications`));batch.set(ref,{...m,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});}await batch.commit();}
+    function normalizeMed(o){return {name:o.name||'',route:o.route||'',class:o.class||'',dose:o.dose||'',indications:o.indications||'',contra:o.contraindications||o.contra||'',lactation:o.lactation||'',sidefx:o.sidefx||'',interactions:o.interactions||'',monitoring:o.monitoring||'',notes:o.notes||''}};
   </script>
 </body>
 </html>
