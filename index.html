@@ -18,7 +18,7 @@
       --stripe: rgba(10,18,41,.035);
     }
     @media (prefers-color-scheme: light){
-      :root:not([data-theme]){ color-scheme: light; }
+      :root:not([data-theme]){ color-sheme: light; }
     }
 
     html,body{height:100%}
@@ -277,8 +277,8 @@
   </dialog>
 
   <script>
-    // ========================= DATA (in-memory; Firestore is source of truth) =========================
-    // We keep DEFAULT_MEDS only as a local template for brand-new users (optional).
+    // ========================= DATA & PERSISTENCE =========================
+    const STORAGE_KEY = 'med_db_v1';
     const DEFAULT_MEDS = [
       { generic: "Acetaminophen", brand: "Tylenol (US/CA)", class: "Analgesic; Antipyretic", routes:["PO","PR","IV"], dose:"325–1,000 mg q4–6h PRN; max 4 g/day (≤3 g/day if chronic use or hepatic risk).", notes:"Avoid alcohol; monitor total daily dose across combination products; liver risk.", favorite:false, details:{ pharmacologicCategory:"Analgesic; Antipyretic", mechanism:"Central COX inhibition; analgesic/antipyretic, minimal anti-inflammatory.", indications:["Mild pain","Fever"], offLabel:"Osteoarthritis when NSAIDs contraindicated.", contraindications:"Severe hepatic impairment; significant active liver disease.", warningsPrecautions:"Hepatotoxicity with overdose or >4 g/day; use lowest effective dose.", adverseReactions:["Generally well tolerated","Rash","Hepatotoxicity at high doses"], interactions:["Chronic alcohol","Isoniazid","Warfarin (INR increase with chronic use)"], monitoring:["Pain/fever relief","Total daily dose","LFTs if high-dose/long-term"], dosingAdult:"Reduce max daily dose in hepatic impairment.", dosingRenal:"No adjustment usually required.", dosingHepatic:"Use ≤2–3 g/day or avoid if severe.", administration:"PO with or without food; IV per product rate; PR insert fully.", bbw:"—", pregnancyLactation:"Generally compatible when used short-term as directed." }},
       { generic:"Ibuprofen", brand:"Advil, Motrin", class:"NSAID", routes:["PO","IV"], dose:"200–400 mg PO q4–6h PRN (OTC max 1.2 g/day; Rx up to 3.2 g/day).", notes:"Take with food; GI bleed/ulcer, renal risk; avoid in late pregnancy.", favorite:false, details:{ pharmacologicCategory:"NSAID", mechanism:"Nonselective COX-1/2 inhibition → reduced prostaglandins.", indications:["Pain","Fever","Inflammatory conditions"], offLabel:["Migraine","Pericarditis (with colchicine)"], contraindications:["NSAID hypersensitivity","CABG perioperative","Active GI bleeding","Third-trimester pregnancy"], warningsPrecautions:["Cardiovascular thrombotic events","GI ulcer/bleed","Renal injury","Fluid retention"], adverseReactions:["Dyspepsia","Nausea","Edema","Blood pressure increase","Rare SJS/TEN"], interactions:["Anticoagulants/antiplatelets","ACEi/ARBs/diuretics","Lithium"], monitoring:["Pain relief","GI symptoms","Blood pressure","Renal function in at-risk patients"], dosingAdult:"Use lowest effective dose for shortest duration.", dosingRenal:"Avoid regular use if significant CKD; monitor.", dosingHepatic:"Use with caution; avoid if severe hepatic disease.", administration:"With food or milk to minimize GI upset; hydrate.", bbw:"Increased risk of serious cardiovascular thrombotic events and GI bleeding.", pregnancyLactation:"Avoid in third trimester; compatible with lactation." }},
@@ -287,8 +287,15 @@
       { generic:"Furosemide", brand:"Lasix", class:"Loop Diuretic", routes:["PO","IV"], dose:"Edema: 20–80 mg/day PO (may divide); IV dosing individualized; titrate to response.", notes:"Monitor K/Na/Mg, renal function, intake/output, blood pressure; ototoxicity risk with rapid IV or high dose.", favorite:false, details:{ pharmacologicCategory:"Loop diuretic", mechanism:"Inhibits Na-K-2Cl transporter in thick ascending limb leading to diuresis.", indications:["Edema (heart failure, hepatic, renal)","Hypertension (adjunct)"], offLabel:["Acute hyperkalemia (adjunct with fluids)"], contraindications:["Anuria","Hypersensitivity to furosemide/sulfonamides (rare cross-reactivity)"], warningsPrecautions:["Electrolyte depletion","Volume contraction","Hypotension","Photosensitivity","Ototoxicity (high IV doses/rapid push or with other ototoxins)"], adverseReactions:["Increased urination","Dizziness","Hypokalemia","Hyponatremia","Hypomagnesemia","Hyperuricemia"], interactions:["Aminoglycosides (ototoxicity)","Digoxin (toxicity with hypokalemia)","NSAIDs (reduced effect)"], monitoring:["BMP (Na/K/Mg/Cr)","Weight","Intake/output","Blood pressure","Hearing with high IV doses"], dosingAdult:"Adjust to diuretic response.", dosingRenal:"May require higher doses in CKD; monitor closely.", dosingHepatic:"Use cautiously; risk of encephalopathy with excessive diuresis in cirrhosis.", administration:"PO in morning; IV slow push or infusion per policy.", bbw:"Potent diuretic—excessive diuresis can cause profound fluid/electrolyte loss.", pregnancyLactation:"Use if benefits outweigh risks; may suppress lactation." }}
     ];
 
-    // Global in-memory dataset for renderer; kept in sync by Firestore listener
     let MEDS = [];
+    function loadLocal(){
+      try{
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if(raw){ MEDS = JSON.parse(raw); }
+        else { MEDS = JSON.parse(JSON.stringify(DEFAULT_MEDS)); }
+      }catch(e){ MEDS = JSON.parse(JSON.stringify(DEFAULT_MEDS)); }
+    }
+    function saveLocal(){ try{ localStorage.setItem(STORAGE_KEY, JSON.stringify(MEDS)); }catch(e){} }
 
     // Map classes to accent background hues (for class pills)
     const CLASS_COLOR = {
@@ -337,9 +344,9 @@
     function populateFilters(){
       $routeF.innerHTML = '<option value="">All routes</option>';
       $classF.innerHTML = '<option value="">All classes</option>';
-      const allRoutes = uniq((MEDS||[]).flatMap(m=>m.routes||[])).sort();
+      const allRoutes = uniq(MEDS.flatMap(m=>m.routes)).sort();
       for(const r of allRoutes){ const o=document.createElement('option'); o.value=r; o.textContent=r; $routeF.appendChild(o); }
-      const allClasses = uniq((MEDS||[]).map(m=>m.class).filter(Boolean));
+      const allClasses = uniq(MEDS.map(m=>m.class));
       for(const c of allClasses){ const o=document.createElement('option'); o.value=c; o.textContent=c; $classF.appendChild(o); }
     }
 
@@ -351,16 +358,16 @@
     }
 
     function rowHTML(m, idx){
-      const routeTags = (m.routes||[]).map(r=>`<span class="pill route">${r}</span>`).join('');
+      const routeTags = m.routes.map(r=>`<span class="pill route">${r}</span>`).join('');
       const favBtn = `<button class="fav ${m.favorite?'active':''}" data-idx="${idx}" title="Toggle favorite" aria-label="Toggle favorite">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
       </button>`;
       const checked = selected.has(idx) ? 'checked' : '';
       return `<tr tabindex="0" role="button" aria-label="Open details for ${m.generic}" data-idx="${idx}">
         <td class="col-sel"><input type="checkbox" class="rowSel" data-idx="${idx}" ${checked}></td>
-        <td class="col-generic"><strong>${m.generic||''}</strong></td>
+        <td class="col-generic"><strong>${m.generic}</strong></td>
         <td class="col-brand">${m.brand||''}</td>
-        <td class="col-class">${classPill(m.class||'')}</td>
+        <td class="col-class">${classPill(m.class)}</td>
         <td class="col-routes">${routeTags}</td>
         <td class="col-dose">${m.dose||''}</td>
         <td class="col-notes">${m.notes||''}</td>
@@ -369,9 +376,9 @@
     }
 
     function passesFilters(m, q){
-      const t = `${m.generic||''} ${m.brand||''} ${m.class||''} ${(m.routes||[]).join(' ')} ${m.dose||''} ${m.notes||''}`.toLowerCase();
+      const t = `${m.generic} ${m.brand} ${m.class} ${m.routes.join(' ')} ${m.dose} ${m.notes}`.toLowerCase();
       if(q && !t.includes(q.toLowerCase())) return false;
-      if($routeF.value && !(m.routes||[]).includes($routeF.value)) return false;
+      if($routeF.value && !m.routes.includes($routeF.value)) return false;
       if($classF.value && m.class!==$classF.value) return false;
       if(favOnly && !m.favorite) return false;
       return true;
@@ -387,7 +394,7 @@
     }
 
     function render(){
-      const filtered = (MEDS||[]).map((m,i)=>({m, i})).filter(({m})=>passesFilters(m, $q.value));
+      const filtered = MEDS.map((m,i)=>({m, i})).filter(({m})=>passesFilters(m, $q.value));
       const sorted = sortMeds(filtered.map(x=>x.m)).map(m=>({m, i: MEDS.indexOf(m)}));
       $tbody.innerHTML = sorted.map(({m,i})=>rowHTML(m, i)).join('');
 
@@ -400,16 +407,12 @@
         });
         tr.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); tr.click(); } });
       });
-      // Favorite toggles — now write to Firestore per doc
+      // Favorite toggles
       [...$tbody.querySelectorAll('.fav')].forEach(btn=>{
-        btn.addEventListener('click', async (e)=>{
+        btn.addEventListener('click', (e)=>{
           e.stopPropagation();
           const idx = +btn.getAttribute('data-idx');
-          const row = MEDS[idx];
-          const api = window.FB;
-          if(!api?.auth?.currentUser) return alert('Please sign in first.');
-          if(!row?.id) return alert('Missing document id.');
-          await api.updateMed(api.auth.currentUser.uid, row.id, { favorite: !row.favorite });
+          MEDS[idx].favorite = !MEDS[idx].favorite; saveLocal(); render();
         });
       });
       // Row checkboxes
@@ -456,9 +459,9 @@
 
     function openModal(m, idx){
       editingIndex = idx;
-      $mTitle.textContent = m.generic||'';
-      $mSub.textContent = `${m.brand||''} — ${m.class||''}`;
-      $mBadges.textContent = (m.routes||[]).join(' · ');
+      $mTitle.textContent = m.generic;
+      $mSub.textContent = `${m.brand} — ${m.class}`;
+      $mBadges.textContent = m.routes.join(' · ');
 
       const d = m.details || {};
       setTabs([
@@ -500,8 +503,8 @@
 
     document.getElementById('closeBtn').addEventListener('click', ()=> modal.close());
 
-    // Edit current record (prefill form)
-    document.getElementById('editBtn').addEventListener('click', ()=>{
+    // Edit current record
+    editBtn.addEventListener('click', ()=>{
       if(editingIndex==null || editingIndex<0) return;
       const m = MEDS[editingIndex];
       addTitle.textContent = 'Edit Medication';
@@ -528,97 +531,55 @@
       modal.close(); addDlg.showModal();
     });
 
-    // Delete current record — now calls Firestore
-    document.getElementById('deleteBtn').addEventListener('click', async ()=>{
+    // Delete current record
+    deleteBtn.addEventListener('click', ()=>{
       if(editingIndex==null || editingIndex<0) return;
       const ok = confirm('Delete this medication? This cannot be undone.');
       if(!ok) return;
-      const api = window.FB;
-      const row = MEDS[editingIndex];
-      if(!api?.auth?.currentUser) return alert('Please sign in first.');
-      if(!row?.id) return alert('Missing document id.');
-      await api.deleteMed(api.auth.currentUser.uid, row.id);
-      modal.close();
+      MEDS.splice(editingIndex,1); saveLocal(); render(); modal.close();
     });
 
     // ========================= ADD/EDIT FORM SUBMIT =========================
     function csvToArray(s){ return (s||'').split(',').map(x=>x.trim()).filter(Boolean); }
     function blockToArrayOrString(s){ if(!s) return ''; if(s.includes(',')) return csvToArray(s); return s.trim(); }
 
-    document.getElementById('addBtn').addEventListener('click', ()=>{ addTitle.textContent='Add Medication'; addForm.reset(); addDlg.showModal(); });
-    document.getElementById('addCloseBtn').addEventListener('click', ()=> addDlg.close());
-    document.getElementById('addResetBtn').addEventListener('click', ()=> addForm.reset());
+    addBtn.addEventListener('click', ()=>{ addTitle.textContent='Add Medication'; addForm.reset(); addDlg.showModal(); });
+    addCloseBtn.addEventListener('click', ()=> addDlg.close());
+    addResetBtn.addEventListener('click', ()=> addForm.reset());
 
-    addForm.addEventListener('submit', async (e)=>{
-  e.preventDefault();
-
-  const item = {
-    generic: document.getElementById('f_generic').value.trim(),
-    brand: document.getElementById('f_brand').value.trim(),
-    class: document.getElementById('f_class').value.trim(),
-    routes: csvToArray(document.getElementById('f_routes').value),
-    dose: document.getElementById('f_dose').value.trim(),
-    notes: document.getElementById('f_notes').value.trim(),
-    favorite: (editingIndex!=null && editingIndex>=0) ? !!MEDS[editingIndex].favorite : false,
-    details: {
-      pharmacologicCategory: document.getElementById('f_class').value.trim(),
-      mechanism: blockToArrayOrString(document.getElementById('f_mech').value),
-      indications: csvToArray(document.getElementById('f_inds').value),
-      offLabel: '',
-      contraindications: blockToArrayOrString(document.getElementById('f_contra').value),
-      warningsPrecautions: blockToArrayOrString(document.getElementById('f_warn').value),
-      adverseReactions: csvToArray(document.getElementById('f_adr').value),
-      interactions: csvToArray(document.getElementById('f_ixn').value),
-      monitoring: [],
-      dosingAdult: document.getElementById('f_doseAdult').value.trim(),
-      dosingRenal: document.getElementById('f_renal').value.trim(),
-      dosingHepatic: document.getElementById('f_hep').value.trim(),
-      administration: document.getElementById('f_admin').value.trim(),
-      bbw: document.getElementById('f_bbw').value.trim(),
-      pregnancyLactation: document.getElementById('f_preg').value.trim()
-    }
-  };
-
-  if (!item.generic || !item.class) { 
-    alert('Please provide at least Generic and Pharmacologic Class.'); 
-    return; 
-  }
-  if (item.routes.length === 0) item.routes = ['PO'];
-
-  // Firestore calls + error surfacing
-  const api = window.FB;
-  if (!api?.auth?.currentUser) {
-    alert('Please sign in first.');
-    return;
-  }
-
-  try {
-    if (editingIndex !== null && editingIndex >= 0) {
-      const id = MEDS[editingIndex]?.id;
-      if (!id) throw new Error('Missing document id.');
-      await api.updateMed(api.auth.currentUser.uid, id, item);
-    } else {
-      await api.createMed(api.auth.currentUser.uid, item);
-    }
-    editingIndex = null;
-    addDlg.close(); // live Firestore snapshot will refresh the table
-  } catch (e) {
-    alert(`Add/update failed: ${e?.code || e?.message || e}`);
-  }
-});
+    addForm.addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const item = {
+        generic: document.getElementById('f_generic').value.trim(),
+        brand: document.getElementById('f_brand').value.trim(),
+        class: document.getElementById('f_class').value.trim(),
+        routes: csvToArray(document.getElementById('f_routes').value),
+        dose: document.getElementById('f_dose').value.trim(),
+        notes: document.getElementById('f_notes').value.trim(),
+        favorite: (editingIndex!=null && editingIndex>=0) ? MEDS[editingIndex].favorite : false,
+        details: {
+          pharmacologicCategory: document.getElementById('f_class').value.trim(),
+          mechanism: blockToArrayOrString(document.getElementById('f_mech').value),
+          indications: csvToArray(document.getElementById('f_inds').value),
+          offLabel: '',
+          contraindications: blockToArrayOrString(document.getElementById('f_contra').value),
+          warningsPrecautions: blockToArrayOrString(document.getElementById('f_warn').value),
+          adverseReactions: csvToArray(document.getElementById('f_adr').value),
+          interactions: csvToArray(document.getElementById('f_ixn').value),
+          monitoring: [],
+          dosingAdult: document.getElementById('f_doseAdult').value.trim(),
+          dosingRenal: document.getElementById('f_renal').value.trim(),
+          dosingHepatic: document.getElementById('f_hep').value.trim(),
+          administration: document.getElementById('f_admin').value.trim(),
+          bbw: document.getElementById('f_bbw').value.trim(),
+          pregnancyLactation: document.getElementById('f_preg').value.trim()
+        }
+      };
       if(!item.generic || !item.class){ alert('Please provide at least Generic and Pharmacologic Class.'); return; }
       if(item.routes.length===0) item.routes = ['PO'];
 
-      const api = window.FB;
-      if(!api?.auth?.currentUser) return alert('Please sign in first.');
-      if(editingIndex!==null && editingIndex>=0){
-        const id = MEDS[editingIndex]?.id;
-        if(!id) return alert('Missing document id.');
-        await api.updateMed(api.auth.currentUser.uid, id, item);
-      } else {
-        await api.createMed(api.auth.currentUser.uid, item);
-      }
-      editingIndex = null; addDlg.close(); // live listener will refresh
+      if(editingIndex!==null && editingIndex>=0){ MEDS[editingIndex] = item; } else { MEDS.push(item); }
+      editingIndex = null; saveLocal(); populateFilters(); render(); addDlg.close();
     });
 
     // ========================= BULK EDIT / DELETE =========================
@@ -640,7 +601,7 @@
     });
     bulkCloseBtn.addEventListener('click', ()=> bulkDlg.close());
 
-    bulkForm.addEventListener('submit', async (e)=>{
+    bulkForm.addEventListener('submit', (e)=>{
       e.preventDefault();
       const ids = [...selected]; if(ids.length===0) return;
       const data = {
@@ -662,41 +623,35 @@
         preg: document.getElementById('b_preg').value.trim()
       };
 
-      const api = window.FB;
-      if(!api?.auth?.currentUser) return alert('Please sign in first.');
-
-      for(const idx of ids){
-        const m = MEDS[idx]; if(!m?.id) continue;
-        const patch = { };
-        if(data.class) { patch.class = data.class; patch.details = {...m.details, pharmacologicCategory:data.class}; }
-        if(data.routes.length) patch.routes = data.routes;
-        if(data.dose) patch.dose = data.dose;
-        if(data.notes) patch.notes = data.notes;
-        if(data.mech){ const cur = Array.isArray(m.details?.mechanism)? m.details.mechanism : [m.details?.mechanism].filter(Boolean); patch.details = {...(patch.details||m.details||{}), mechanism: applyMode(cur, csv(data.mech), data.mechMode)}; }
-        if(data.inds.length){ patch.details = {...(patch.details||m.details||{}), indications: applyMode(m.details?.indications||[], data.inds, data.indsMode)}; }
-        if(data.contra){ patch.details = {...(patch.details||m.details||{}), contraindications: data.contra}; }
-        if(data.warn){ patch.details = {...(patch.details||m.details||{}), warningsPrecautions: data.warn}; }
-        if(data.adr.length){ patch.details = {...(patch.details||m.details||{}), adverseReactions: data.adr}; }
-        if(data.ixn.length){ patch.details = {...(patch.details||m.details||{}), interactions: data.ixn}; }
-        if(data.doseAdult){ patch.details = {...(patch.details||m.details||{}), dosingAdult: data.doseAdult}; }
-        if(data.admin){ patch.details = {...(patch.details||m.details||{}), administration: data.admin}; }
-        if(data.renal){ patch.details = {...(patch.details||m.details||{}), dosingRenal: data.renal}; }
-        if(data.hepatic){ patch.details = {...(patch.details||m.details||{}), dosingHepatic: data.hepatic}; }
-        if(data.bbw){ patch.details = {...(patch.details||m.details||{}), bbw: data.bbw}; }
-        if(data.preg){ patch.details = {...(patch.details||m.details||{}), pregnancyLactation: data.preg}; }
-
-        await api.updateMed(api.auth.currentUser.uid, m.id, patch);
-      }
-      bulkDlg.close();
+      ids.forEach(idx=>{
+        const m = MEDS[idx]; if(!m) return;
+        if(data.class) { m.class = data.class; m.details.pharmacologicCategory = data.class; }
+        if(data.routes.length) m.routes = data.routes;
+        if(data.dose) m.dose = data.dose;
+        if(data.notes) m.notes = data.notes;
+        if(data.mech) m.details.mechanism = applyMode(Array.isArray(m.details.mechanism)?m.details.mechanism:[m.details.mechanism].filter(Boolean), csv(data.mech), data.mechMode);
+        if(data.inds.length) m.details.indications = applyMode(m.details.indications||[], data.inds, data.indsMode);
+        if(data.contra) m.details.contraindications = data.contra;
+        if(data.warn) m.details.warningsPrecautions = data.warn;
+        if(data.adr.length) m.details.adverseReactions = data.adr;
+        if(data.ixn.length) m.details.interactions = data.ixn;
+        if(data.doseAdult) m.details.dosingAdult = data.doseAdult;
+        if(data.admin) m.details.administration = data.admin;
+        if(data.renal) m.details.dosingRenal = data.renal;
+        if(data.hepatic) m.details.dosingHepatic = data.hepatic;
+        if(data.bbw) m.details.bbw = data.bbw;
+        if(data.preg) m.details.pregnancyLactation = data.preg;
+      });
+      saveLocal(); render(); bulkDlg.close();
     });
 
-    bulkDeleteBtn.addEventListener('click', async ()=>{
+    bulkDeleteBtn.addEventListener('click', ()=>{
       if(selected.size===0){ alert('Select at least one medication.'); return; }
-      const ok = confirm(`Delete ${selected.size} selected medication(s)? This cannot be undone.`);
+      const count = selected.size; const ok = confirm(`Delete ${count} selected medication(s)? This cannot be undone.`);
       if(!ok) return;
-      const api = window.FB; if(!api?.auth?.currentUser) return alert('Please sign in first.');
-      const toDelete = [...selected]; selected.clear();
-      for(const idx of toDelete){ const row = MEDS[idx]; if(row?.id) await api.deleteMed(api.auth.currentUser.uid, row.id); }
+      const toDelete = new Set(selected); selected.clear();
+      MEDS = MEDS.filter((_, idx)=> !toDelete.has(idx));
+      saveLocal(); populateFilters(); render();
     });
 
     // Select all visible
@@ -725,13 +680,8 @@
 
     document.getElementById('favOnlyBtn').addEventListener('click', ()=>{ favOnly = !favOnly; render(); });
 
-    // ========================= INIT =========================
-    function init(){
-      // Show defaults locally until signed-in snapshot arrives (optional):
-      MEDS = DEFAULT_MEDS.slice();
-      populateFilters();
-      render();
-    }
+    // ========================= INIT & SHORTCUTS =========================
+    function init(){ loadLocal(); populateFilters(); render(); }
     init();
 
     window.addEventListener('keydown', (e)=>{
@@ -761,118 +711,122 @@
         const text = await file.text(); const data = JSON.parse(text);
         if(!Array.isArray(data)) throw new Error('Invalid format: expected an array');
         if(!data.every(x=>x.generic && x.class)) throw new Error('Each item needs at least "generic" and "class"');
-        // Push each imported item into Firestore for the current user
-        const api = window.FB; if(!api?.auth?.currentUser) throw new Error('Please sign in first.');
-        for(const item of data){ await api.createMed(api.auth.currentUser.uid, item); }
-        alert('Imported successfully.');
+        MEDS = data; saveLocal(); populateFilters(); render(); alert('Imported successfully.');
       }catch(err){ alert('Import failed: '+err.message); }
       finally{ importFile.value = ''; }
     });
   </script>
 
-  <!-- Firebase Email/Password + Firestore adapter (per-user docs) -->
-  <script type="module">
-    import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
-    import {
-      getAuth, setPersistence, browserLocalPersistence,
-      onAuthStateChanged, createUserWithEmailAndPassword,
-      signInWithEmailAndPassword, sendPasswordResetEmail, signOut
-    } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
-    import {
-      getFirestore, collection, doc, addDoc, updateDoc, deleteDoc,
-      onSnapshot, serverTimestamp
-    } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+<!-- Firebase Email/Password + Firestore adapter (fixed) -->
+<script type="module">
+  import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+  import {
+    getAuth, setPersistence, browserLocalPersistence,
+    onAuthStateChanged, createUserWithEmailAndPassword,
+    signInWithEmailAndPassword, sendPasswordResetEmail, signOut
+  } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
+  import {
+    getFirestore, collection, doc, addDoc, updateDoc, deleteDoc,
+    onSnapshot, getDoc, setDoc, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyB4SLwd4A3wNrstcHNzuI83z0G8e-1AK50",
-      authDomain: "nadia-b4de4.firebaseapp.com",
-      projectId: "nadia-b4de4",
-      storageBucket: "nadia-b4de4.appspot.com",   // fixed
-      messagingSenderId: "354468688054",
-      appId: "1:354468688054:web:9163d3700f3fd4c0097617"
-    };
+  const firebaseConfig = {
+    apiKey: "AIzaSyB4SLwd4A3wNrstcHNzuI83z0G8e-1AK50",
+    authDomain: "nadia-b4de4.firebaseapp.com",
+    projectId: "nadia-b4de4",
+    storageBucket: "nadia-b4de4.appspot.com",   // ← fixed
+    messagingSenderId: "354468688054",
+    appId: "1:354468688054:web:9163d3700f3fd4c0097617"
+  };
 
-    const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
-    const auth = getAuth(app);
-    const db   = getFirestore(app);
+  const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db   = getFirestore(app);
 
-    const $ = (id)=>document.getElementById(id);
-    const ui = {
-      email: $('email'), password: $('password'),
-      signup: $('signup'), signin: $('signin'), reset: $('reset'), signout: $('signout'),
-      status: $('status'), err: $('err')
-    };
-    const showErr = (e)=>{ if(ui.err){ ui.err.style.display='block'; ui.err.textContent = e?.message || String(e); } console.error(e); };
-    const clearErr = ()=>{ if(ui.err){ ui.err.style.display='none'; ui.err.textContent=''; } };
+  // Small DOM helpers
+  const $ = (id)=>document.getElementById(id);
+  const ui = {
+    email: $('email'), password: $('password'),
+    signup: $('signup'), signin: $('signin'), reset: $('reset'), signout: $('signout'),
+    status: $('status'), err: $('err')
+  };
+  const showErr = (e)=>{ if(ui.err){ ui.err.style.display='block'; ui.err.textContent = e?.message || String(e); } console.error(e); };
+  const clearErr = ()=>{ if(ui.err){ ui.err.style.display='none'; ui.err.textContent=''; } };
 
-    setPersistence(auth, browserLocalPersistence).catch(console.error);
+  // Auth UI
+  setPersistence(auth, browserLocalPersistence).catch(console.error);
 
-    ui.signup?.addEventListener('click', async ()=>{ clearErr(); try{
-      const cred = await createUserWithEmailAndPassword(auth, ui.email.value.trim(), ui.password.value);
-      ui.status.textContent = "Signed up as " + (cred.user.email || cred.user.uid);
-    }catch(e){ showErr(e); } });
+  ui.signup?.addEventListener('click', async ()=>{ clearErr(); try{
+    const cred = await createUserWithEmailAndPassword(auth, ui.email.value.trim(), ui.password.value);
+    ui.status.textContent = "Signed up as " + (cred.user.email || cred.user.uid);
+  }catch(e){ showErr(e); } });
 
-    ui.signin?.addEventListener('click', async ()=>{ clearErr(); try{
-      const cred = await signInWithEmailAndPassword(auth, ui.email.value.trim(), ui.password.value);
-      ui.status.textContent = "Signed in as " + (cred.user.email || cred.user.uid);
-    }catch(e){ showErr(e); } });
+  ui.signin?.addEventListener('click', async ()=>{ clearErr(); try{
+    const cred = await signInWithEmailAndPassword(auth, ui.email.value.trim(), ui.password.value);
+    ui.status.textContent = "Signed in as " + (cred.user.email || cred.user.uid);
+  }catch(e){ showErr(e); } });
 
-    ui.reset?.addEventListener('click', async ()=>{ clearErr(); try{
-      await sendPasswordResetEmail(auth, ui.email.value.trim());
-      ui.status.textContent = "Password reset email sent.";
-    }catch(e){ showErr(e); } });
+  ui.reset?.addEventListener('click', async ()=>{ clearErr(); try{
+    await sendPasswordResetEmail(auth, ui.email.value.trim());
+    ui.status.textContent = "Password reset email sent.";
+  }catch(e){ showErr(e); } });
 
-    ui.signout?.addEventListener('click', async ()=>{ clearErr(); try{
-      await signOut(auth); ui.status.textContent = "Signed out.";
-    }catch(e){ showErr(e); } });
+  ui.signout?.addEventListener('click', async ()=>{ clearErr(); try{
+    await signOut(auth); ui.status.textContent = "Signed out.";
+  }catch(e){ showErr(e); } });
 
-    // ---------- Firestore per-user collection ----------
-    const medsCol = (uid)=> collection(db, 'users', uid, 'medications');
-    const medDoc  = (uid, id)=> doc(db, 'users', uid, 'medications', id);
+  // ---------- Firestore helpers (per-user collection) ----------
+  const medsCol = (uid)=> collection(db, 'users', uid, 'medications');
+  const medDoc  = (uid, id)=> doc(db, 'users', uid, 'medications', id);
 
-    async function createMed(uid, med){
-      await addDoc(medsCol(uid), { ...med, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  async function createMed(uid, med){
+    await addDoc(medsCol(uid), { ...med, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+  }
+  async function updateMed(uid, id, partial){
+    await updateDoc(medDoc(uid, id), { ...partial, updatedAt: serverTimestamp() });
+  }
+  async function deleteMed(uid, id){
+    await deleteDoc(medDoc(uid, id));
+  }
+
+  // Expose to the main UI script (which was loaded earlier)
+  window.FB = { auth, createMed, updateMed, deleteMed };
+
+  // Bind live data when signed in
+  let unsub = null;
+  function safeRender(){
+    try { if (Array.isArray(window.MEDS) && typeof window.render === 'function') window.render(); }
+    catch(e){ console.warn('[RENDER] not ready', e); }
+  }
+  function populateFiltersSafe(){
+    try { if (typeof window.populateFilters === 'function') window.populateFilters(); }
+    catch(e){}
+  }
+
+  onAuthStateChanged(auth, (user)=>{
+    clearErr();
+    if (unsub) { unsub(); unsub = null; }
+
+    if (!user) {
+      if (ui.status) ui.status.textContent = "Not signed in.";
+      // Fall back to localStorage data (your init already does this)
+      safeRender();
+      return;
     }
-    async function updateMed(uid, id, partial){
-      await updateDoc(medDoc(uid, id), { ...partial, updatedAt: serverTimestamp() });
-    }
-    async function deleteMed(uid, id){
-      await deleteDoc(medDoc(uid, id));
-    }
 
-    // Expose to main UI script
-    window.FB = { auth, createMed, updateMed, deleteMed };
+    if (ui.status) ui.status.innerHTML = "Signed in as " + (user.email || user.uid);
 
-    // Bind live data when signed in
-    let unsub = null;
-    function safeRender(){ try { if (Array.isArray(window.MEDS) && typeof window.render === 'function') window.render(); } catch(e){ console.warn('[RENDER] not ready', e); } }
-    function populateFiltersSafe(){ try { if (typeof window.populateFilters === 'function') window.populateFilters(); } catch(e){} }
-
-    onAuthStateChanged(auth, (user)=>{
-      clearErr();
-      if (unsub) { unsub(); unsub = null; }
-
-      if (!user) {
-        if (ui.status) ui.status.textContent = "Not signed in.";
-        // keep showing default local data until sign-in
-        safeRender();
-        return;
-      }
-
-      if (ui.status) ui.status.innerHTML = "Signed in as " + (user.email || user.uid);
-
-      // Live collection listener: keeps MEDS array in sync
-      unsub = onSnapshot(medsCol(user.uid), (snap)=>{
-        const rows = [];
-        snap.forEach(d => rows.push({ id: d.id, ...d.data() }));
-        window.MEDS = rows;     // replace in-memory table data
-        populateFiltersSafe();
-        safeRender();
-        console.log('[LIVE] docs:', rows.length);
-        // If user is brand-new and has no docs, you could auto-seed DEFAULT_MEDS here if desired.
-      }, (err)=> showErr(err));
-    });
-  </script>
+    // Live collection listener: keeps MEDS array in sync
+    unsub = onSnapshot(medsCol(user.uid), (snap)=>{
+      const rows = [];
+      snap.forEach(d => rows.push({ id: d.id, ...d.data() }));
+      window.MEDS = rows;     // replace in-memory table data
+      populateFiltersSafe();
+      safeRender();
+      console.log('[LIVE] docs:', rows.length);
+    }, (err)=> showErr(err));
+  });
+</script>
 
 </body>
 </html>
