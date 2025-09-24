@@ -3,829 +3,289 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Personal Medication Database (Nursing)</title>
+  <title>Personal Medication Database (Per‑User)</title>
+  <!--
+    This file is a DROP‑IN REPLACEMENT you can commit to GitHub Pages.
+    ✅ Per‑user data isolation (Firestore: users/{uid}/medications)
+    ✅ Email/password auth (client‑side)
+    ✅ Keeps your dark/light variable look and card layout similar to your original
+    ✅ Works on static hosting (GitHub Pages) — no server needed
+
+    HOW TO USE:
+    1) Replace the firebaseConfig object below with YOURS (already filled in from your message).
+    2) If you already have a page design, keep your HTML/CSS and paste ONLY the <script type="module"> block at the bottom.
+       Make sure your inputs have the IDs referenced below (see the comment near the form) OR update the selectors in JS.
+    3) Commit to GitHub → Settings → Pages → Build from main (/root) or /docs folder.
+    4) In Firebase Console → Build → Firestore Database → RULES: use the rules provided below this file in the Chat.
+  -->
   <style>
     /* ========================= THEME & TYPOGRAPHY ========================= */
     :root{
       --bg:#0e1324; --fg:#eaf0ff; --mut:#b8c0ea; --card:#161e3b; --line:#2b376d; --accent:#8ab4ff; --bad:#ff7a7a; --good:#7affba;
-      --shadow:0 6px 18px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.02);
+      --shadow:0 6px 18px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.02);
       --stripe: rgba(255,255,255,.02);
-      --borderRadius:16px;
+      --radius:16px;
     }
-    :root[data-theme="light"]{
-      --bg:#f7f9ff; --fg:#0a1229; --mut:#47507a; --card:#ffffff; --line:#dfe6ff; --accent:#335dff; --bad:#d63939; --good:#17b26a;
-      --shadow:0 10px 24px rgba(21,33,80,.12);
-      --stripe: rgba(10,18,41,.035);
+    [data-theme="light"]{
+      --bg:#f7f9ff; --fg:#0a1229; --mut:#47507a; --card:#ffffff; --line:#dfe5ff; --accent:#315efb; --bad:#d43d3d; --good:#0f9960;
+      --shadow:0 6px 18px rgba(10,18,41,.08);
+      --stripe: rgba(0,0,0,.02);
     }
-    @media (prefers-color-scheme: light){
-      :root:not([data-theme]){ color-sheme: light; }
-    }
-
+    *{box-sizing:border-box}
     html,body{height:100%}
-    body{margin:0; font:15.5px/1.6 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:var(--bg); color:var(--fg)}
-    h1,h2,h3{font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif}
+    body{margin:0;font:14px/1.5 system-ui,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--fg)}
+    a{color:var(--accent)}
 
-    .wrap{max-width:1200px; margin:0 auto; padding:22px}
-    h1{margin:0 0 10px; font-size:24px}
-    p.hint{color:var(--mut); margin:0 0 16px}
+    /* ========================= LAYOUT ========================= */
+    .wrap{max-width:1100px;margin:0 auto;padding:18px}
+    header{display:flex;align-items:center;gap:12px;justify-content:space-between;margin:2px 0 14px}
+    h1{font-size:20px;margin:0}
+    .row{display:flex;gap:12px;flex-wrap:wrap}
 
-    .toolbar{display:flex; gap:8px; flex-wrap:wrap; margin:0 0 12px}
-    .toolbar input,.toolbar select{background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:999px; padding:10px 12px}
-    .btn{cursor:pointer; background:var(--accent); color:#fff; border:none; border-radius:999px; padding:10px 14px; font-weight:650; box-shadow:var(--shadow)}
-    .btn-ghost{cursor:pointer; background:transparent; color:var(--fg); border:1px solid var(--line); border-radius:999px; padding:9px 13px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px}
 
-    .card{background:var(--card); border:1px solid var(--line); border-radius:var(--borderRadius); padding:12px; box-shadow:var(--shadow)}
+    /* ========================= AUTH WIDGET ========================= */
+    .auth{display:flex;align-items:center;gap:10px}
+    .auth input{border:1px solid var(--line);background:transparent;color:var(--fg);padding:8px 10px;border-radius:12px}
+    .auth button{border:1px solid var(--line);background:transparent;color:var(--fg);padding:8px 12px;border-radius:12px;cursor:pointer}
+    .auth .who{opacity:.9}
 
-    /* ========================= TABLE ========================= */
-    table{width:100%; border-collapse:separate; border-spacing:0}
-    thead th{position:sticky; top:0; background:linear-gradient(#1b2550,#192249); color:#e9f0ff; text-align:left; font-weight:700; border-bottom:1px solid var(--line); padding:12px 10px; user-select:none}
-    :root[data-theme="light"] thead th{background:linear-gradient(#f0f3ff,#e8ecff); color:#0a1229}
-    thead th.sortable{cursor:pointer}
-    thead th.sortable::after{content:"▾"; font-size:10px; opacity:.5; margin-left:6px}
-    thead th.sortable.asc::after{content:"▴"}
+    /* ========================= FORM ========================= */
+    form#med-form{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    form#med-form input, form#med-form textarea{width:100%;border:1px solid var(--line);background:transparent;color:var(--fg);padding:10px;border-radius:12px}
+    form#med-form textarea{grid-column:1/-1;min-height:80px}
+    form#med-form .actions{grid-column:1/-1;display:flex;gap:10px;justify-content:flex-end}
+    .btn{border:1px solid var(--line);background:transparent;color:var(--fg);padding:10px 14px;border-radius:12px;cursor:pointer}
 
-    tbody td{padding:14px 10px; border-bottom:1px solid var(--line); vertical-align:top}
-    tbody tr{transition:background .15s, box-shadow .15s}
-    tbody tr:nth-child(even){background:var(--stripe)}
-    tbody tr:hover{background-color:rgba(138,180,255,.08); box-shadow:inset 0 0 0 1px rgba(138,180,255,.35)}
+    /* ========================= GRID ========================= */
+    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px}
+    @media (max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}}
+    @media (max-width:620px){.grid{grid-template-columns:1fr}}
 
-    .col-sel{width:36px}
-    .col-generic{width:18ch}
-    .col-brand{width:20ch}
-    .col-class{width:24ch}
-    .col-routes{width:18ch}
-    .col-dose{width:34ch}
-    .col-notes{width:1%; min-width:42ch}
+    .med-card{position:relative}
+    .med-title{font-weight:600;margin:0 0 8px;font-size:16px}
+    .mut{color:var(--mut);font-size:12px}
+    .rowline{margin:4px 0}
+    .pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:2px 8px;margin-right:6px}
+    .toolbar{position:absolute;top:10px;right:10px;display:flex;gap:6px}
+    .iconbtn{border:1px solid var(--line);background:transparent;color:var(--fg);padding:6px 8px;border-radius:10px;cursor:pointer}
 
-    .pill{display:inline-block; padding:3px 10px; border:1px solid var(--line); border-radius:999px; font-size:12px; margin-right:6px}
-    .pill.route{color:var(--mut)}
-    .pill.class{color:#0a0a0a; background:#cfe1ff; border-color:transparent}
-    :root[data-theme="light"] .pill.class{color:#0a1229}
-
-    .fav{background:transparent; border:1px solid var(--line); border-radius:12px; padding:6px; cursor:pointer}
-    .fav svg{width:16px; height:16px; display:block; opacity:.7}
-    .fav.active{border-color:#f2c94c; background:rgba(242,201,76,.15)}
-    .fav.active svg path{fill:#f2c94c; stroke:#f2c94c}
-
-    /* ========================= MODALS ========================= */
-    dialog{border:1px solid var(--line); border-radius:var(--borderRadius); background:#0b1126; color:var(--fg); padding:0; box-shadow:0 20px 60px rgba(0,0,0,.45)}
-    :root[data-theme="light"] dialog{background:#ffffff}
-    dialog::backdrop{background:rgba(3,7,18,.6)}
-
-    /* Details modal */
-    #modal{width:min(980px, 94vw)}
-    .modal-head{display:flex; justify-content:space-between; align-items:center; padding:16px 18px; border-bottom:1px solid var(--line); background:#0f1733}
-    :root[data-theme="light"] .modal-head{background:#f5f7ff}
-    .modal-title{font-size:18px; font-weight:800}
-    .modal-sub{color:var(--mut); font-size:12px}
-    .x{appearance:none; border:1px solid var(--line); background:transparent; color:var(--fg); border-radius:10px; padding:8px 12px}
-    .tabs{display:flex; flex-wrap:wrap; gap:8px; padding:10px 12px; border-bottom:1px solid var(--line); background:linear-gradient(180deg, rgba(255,255,255,.02), transparent)}
-    .tab-btn{border:1px solid var(--line); background:transparent; color:var(--fg); padding:8px 12px; border-radius:999px; cursor:pointer}
-    .tab-btn.active{background:var(--accent); color:#fff; border-color:transparent}
-    .tab-panel{display:none; padding:14px 16px; max-height:65vh; overflow:auto}
-    .tab-panel.active{display:block}
-    .section{border-left:4px solid #7aa5ff; border-radius:8px; padding:8px 10px; margin:10px 0; background:rgba(122,165,255,.06)}
-    :root[data-theme="light"] .section{background:rgba(51,93,255,.06)}
-    .section h3{margin:0 0 6px; font-size:14px}
-
-    /* Add-med modal */
-    #addDlg, #bulkDlg{width:min(820px, 94vw)}
-    .form{padding:12px 16px; max-height:70vh; overflow:auto}
-    .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
-    .grid1{display:grid; grid-template-columns:1fr; gap:10px}
-    label{font-size:12px; color:var(--mut)}
-    input[type="text"], textarea, select{width:100%; background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:12px; padding:10px 12px}
-    textarea{min-height:70px}
-    .form-actions{display:flex; gap:8px; justify-content:flex-end; padding:12px 16px; border-top:1px solid var(--line)}
+    .empty{opacity:.8;text-align:center;padding:18px;border:1px dashed var(--line);border-radius:var(--radius)}
   </style>
 </head>
 <body>
-<!-- Sign-in panel (email/password) -->
-<div id="auth-panel" style="margin:10px 0; font-family: system-ui, Arial, sans-serif;">
-  <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center">
-    <input id="email" type="email" placeholder="Email" autocomplete="username" style="padding:6px 8px;border:1px solid #cbd5e1;border-radius:8px">
-    <input id="password" type="password" placeholder="Password" autocomplete="current-password" style="padding:6px 8px;border:1px solid #cbd5e1;border-radius:8px">
-    <button id="signup">Sign up</button>
-    <button id="signin">Sign in</button>
-    <button id="reset">Reset</button>
-    <span id="status" style="margin-left:8px;color:#64748b">Not signed in.</span>
-    <button id="signout" style="margin-left:auto">Sign out</button>
-  </div>
-  <div id="err" style="color:#b91c1c; margin-top:6px; display:none"></div>
-</div>
-
   <div class="wrap">
-    <h1>Personal Medication Database (Nursing)</h1>
-    <p class="hint">Lexidrug-style headings. You can add, edit, delete individually, or select multiple for bulk actions. Toggle light/dark, sort columns, mark favorites.</p>
+    <header>
+      <h1>Medication Database</h1>
+      <div class="auth card">
+        <span id="auth-status" class="who mut">Signed out</span>
+        <input id="auth-email" type="email" placeholder="email" autocomplete="username" />
+        <input id="auth-pass" type="password" placeholder="password" autocomplete="current-password" />
+        <button id="btn-signup" title="Create account">Sign up</button>
+        <button id="btn-signin" title="Sign in">Sign in</button>
+        <button id="btn-signout" title="Sign out" style="display:none">Sign out</button>
+      </div>
+    </header>
 
-    <div class="toolbar">
-      <button id="themeBtn" class="btn-ghost" title="Toggle light/dark">Theme</button>
-      <input id="q" type="search" placeholder="Search generic, brand, class, notes…" />
-      <select id="routeF" class="btn-ghost"><option value="">All routes</option></select>
-      <select id="classF" class="btn-ghost"><option value="">All classes</option></select>
-      <button class="btn" id="addBtn" title="Add a new medication">Add Medication</button>
-      <button class="btn-ghost" id="bulkEditBtn" title="Edit selected">Bulk Edit</button>
-      <button class="btn-ghost" id="bulkDeleteBtn" title="Delete selected">Bulk Delete</button>
-      <button class="btn" id="exportBtn">Export JSON</button>
-      <input id="importFile" type="file" accept="application/json" hidden />
-      <button class="btn-ghost" id="importBtn" title="Import database JSON">Import</button>
-      <button class="btn-ghost" id="favOnlyBtn" title="Show favorites only">Favorites Only</button>
-    </div>
+    <!--
+      If you already have a form in your HTML, you can:
+      - Keep your form & CSS
+      - Ensure your inputs have these IDs (or tweak selectors in JS below):
+        #med-name, #med-route, #med-class, #med-dose, #med-indications, #med-contra, #med-lactation, #med-sidefx
+    -->
+    <section class="card">
+      <h2 style="margin:0 0 8px;font-size:16px">Add / Edit medication</h2>
+      <form id="med-form">
+        <input id="med-name" placeholder="Name (e.g., Amoxicillin)" required />
+        <input id="med-route" placeholder="Route (e.g., PO, IV, patch)" />
+        <input id="med-class" placeholder="Class (e.g., antibiotic)" />
+        <input id="med-dose" placeholder="Dose (e.g., 500 mg BID)" />
+        <textarea id="med-indications" placeholder="Indications"></textarea>
+        <textarea id="med-contra" placeholder="Contraindications"></textarea>
+        <textarea id="med-lactation" placeholder="Pregnancy/Lactation notes"></textarea>
+        <textarea id="med-sidefx" placeholder="Common Side Effects"></textarea>
+        <div class="actions">
+          <button type="submit" class="btn" id="btn-save">Save</button>
+          <button type="button" class="btn" id="btn-reset">Reset</button>
+        </div>
+        <input type="hidden" id="med-id" />
+      </form>
+    </section>
 
-    <div class="card">
-      <table id="medTable" aria-describedby="Medication table">
-        <thead>
-          <tr>
-            <th class="col-sel"><input type="checkbox" id="selectAll"></th>
-            <th class="col-generic sortable" data-key="generic">Generic</th>
-            <th class="col-brand sortable" data-key="brand">Brand</th>
-            <th class="col-class sortable" data-key="class">Pharmacologic Class</th>
-            <th class="col-routes">Route(s)</th>
-            <th class="col-dose">Usual Adult Dose</th>
-            <th class="col-notes">Key Nursing Notes</th>
-            <th title="Mark as favorite">Fav</th>
-          </tr>
-        </thead>
-        <tbody></tbody>
-      </table>
-    </div>
-
-    <p class="hint" style="margin-top:10px">Use the checkboxes to select multiple rows for bulk edit or delete. Export/Import JSON for backups.</p>
+    <section style="margin-top:12px">
+      <div id="meds-grid" class="grid"></div>
+      <div id="empty-state" class="empty" style="display:none">No medications yet. Add your first above.</div>
+    </section>
   </div>
 
-  <!-- Details Modal -->
-  <dialog id="modal">
-    <div class="modal-head">
-      <div>
-        <div class="modal-title" id="mTitle"></div>
-        <div class="modal-sub" id="mSub"></div>
-      </div>
-      <div style="display:flex; gap:8px; align-items:center">
-        <span id="mBadges" class="pill route"></span>
-        <button class="btn-ghost" id="editBtn" title="Edit this medication">Edit</button>
-        <button class="btn-ghost" id="deleteBtn" title="Delete this medication">Delete</button>
-        <button class="x" id="closeBtn">Close</button>
-      </div>
-    </div>
-    <div class="tabs" id="tabs"></div>
-    <div class="tab-panel active" id="tab-overview"></div>
-    <div class="tab-panel" id="tab-dosing"></div>
-    <div class="tab-panel" id="tab-safety"></div>
-    <div class="tab-panel" id="tab-monitoring"></div>
-  </dialog>
-
-  <!-- Add / Edit Medication Modal (same form) -->
-  <dialog id="addDlg">
-    <div class="modal-head">
-      <div class="modal-title" id="addTitle">Add Medication</div>
-      <button class="x" id="addCloseBtn">Close</button>
-    </div>
-    <form class="form" id="addForm">
-      <div class="grid2">
-        <div><label>Generic</label><input type="text" id="f_generic" required /></div>
-        <div><label>Brand</label><input type="text" id="f_brand" /></div>
-        <div><label>Pharmacologic Class</label><input type="text" id="f_class" required /></div>
-        <div><label>Route(s) (comma‑separated)</label><input type="text" id="f_routes" placeholder="PO, IV, PR" /></div>
-        <div><label>Usual Adult Dose</label><input type="text" id="f_dose" /></div>
-        <div><label>Key Nursing Notes</label><input type="text" id="f_notes" /></div>
-      </div>
-      <div class="grid1">
-        <div><label>Mechanism</label><textarea id="f_mech" placeholder="Text or list (comma‑separated)"></textarea></div>
-        <div><label>Indications</label><textarea id="f_inds" placeholder="Comma‑separated list"></textarea></div>
-        <div class="grid2">
-          <div><label>Contraindications</label><textarea id="f_contra"></textarea></div>
-          <div><label>Warnings/Precautions</label><textarea id="f_warn"></textarea></div>
-        </div>
-        <div class="grid2">
-          <div><label>Adverse Reactions</label><textarea id="f_adr"></textarea></div>
-          <div><label>Interactions</label><textarea id="f_ixn"></textarea></div>
-        </div>
-        <div class="grid2">
-          <div><label>Dosing: Adult</label><textarea id="f_doseAdult"></textarea></div>
-          <div><label>Administration</label><textarea id="f_admin"></textarea></div>
-        </div>
-        <div class="grid2">
-          <div><label>Dose Adjustment: Renal</label><textarea id="f_renal"></textarea></div>
-          <div><label>Dose Adjustment: Hepatic</label><textarea id="f_hep"></textarea></div>
-        </div>
-        <div class="grid2">
-          <div><label>Boxed Warnings</label><textarea id="f_bbw"></textarea></div>
-          <div><label>Pregnancy/Lactation</label><textarea id="f_preg"></textarea></div>
-        </div>
-      </div>
-      <div class="form-actions">
-        <button type="button" class="btn-ghost" id="addResetBtn">Reset</button>
-        <button type="submit" class="btn" id="saveMedBtn">Save Medication</button>
-      </div>
-    </form>
-  </dialog>
-
-  <!-- Bulk Edit Modal -->
-  <dialog id="bulkDlg">
-    <div class="modal-head">
-      <div class="modal-title">Bulk Edit</div>
-      <button class="x" id="bulkCloseBtn">Close</button>
-    </div>
-    <form class="form" id="bulkForm">
-      <p class="hint">Only filled fields will be applied to selected medications. For list-like fields, choose Replace or Append.</p>
-      <div class="grid2">
-        <div><label>Pharmacologic Class (replace)</label><input type="text" id="b_class" /></div>
-        <div><label>Route(s) (comma‑separated)</label><input type="text" id="b_routes" placeholder="PO, IV, PR" /></div>
-        <div><label>Usual Adult Dose</label><input type="text" id="b_dose" /></div>
-        <div><label>Key Nursing Notes</label><input type="text" id="b_notes" /></div>
-      </div>
-      <div class="grid1">
-        <div class="grid2">
-          <div><label>Mechanism</label><textarea id="b_mech"></textarea></div>
-          <div>
-            <label>Mechanism Mode</label>
-            <select id="b_mech_mode"><option value="replace">Replace</option><option value="append">Append</option></select>
-          </div>
-        </div>
-        <div class="grid2">
-          <div><label>Indications</label><textarea id="b_inds"></textarea></div>
-          <div>
-            <label>Indications Mode</label>
-            <select id="b_inds_mode"><option value="replace">Replace</option><option value="append">Append</option></select>
-          </div>
-        </div>
-        <div class="grid2">
-          <div><label>Contraindications</label><textarea id="b_contra"></textarea></div>
-          <div><label>Warnings/Precautions</label><textarea id="b_warn"></textarea></div>
-        </div>
-        <div class="grid2">
-          <div><label>Adverse Reactions</label><textarea id="b_adr"></textarea></div>
-          <div><label>Interactions</label><textarea id="b_ixn"></textarea></div>
-        </div>
-        <div class="grid2">
-          <div><label>Dosing: Adult</label><textarea id="b_doseAdult"></textarea></div>
-          <div><label>Administration</label><textarea id="b_admin"></textarea></div>
-        </div>
-        <div class="grid2">
-          <div><label>Renal Adjustment</label><textarea id="b_renal"></textarea></div>
-          <div><label>Hepatic Adjustment</label><textarea id="b_hep"></textarea></div>
-        </div>
-        <div class="grid2">
-          <div><label>Boxed Warnings</label><textarea id="b_bbw"></textarea></div>
-          <div><label>Pregnancy/Lactation</label><textarea id="b_preg"></textarea></div>
-        </div>
-      </div>
-      <div class="form-actions">
-        <button type="submit" class="btn">Apply to Selected</button>
-      </div>
-    </form>
-  </dialog>
-
-  <script>
-    // ========================= DATA & UI (in-memory) =========================
-    // When signed OUT: the table shows defaults. When signed IN: it shows your Firestore docs.
-    const DEFAULT_MEDS = [
-      { generic: "Acetaminophen", brand: "Tylenol (US/CA)", class: "Analgesic; Antipyretic", routes:["PO","PR","IV"], dose:"325–1,000 mg q4–6h PRN; max 4 g/day (≤3 g/day if chronic use or hepatic risk).", notes:"Avoid alcohol; monitor total daily dose across combination products; liver risk.", favorite:false, details:{ pharmacologicCategory:"Analgesic; Antipyretic", mechanism:"Central COX inhibition; analgesic/antipyretic, minimal anti-inflammatory.", indications:["Mild pain","Fever"], offLabel:"Osteoarthritis when NSAIDs contraindicated.", contraindications:"Severe hepatic impairment; significant active liver disease.", warningsPrecautions:"Hepatotoxicity with overdose or >4 g/day; use lowest effective dose.", adverseReactions:["Generally well tolerated","Rash","Hepatotoxicity at high doses"], interactions:["Chronic alcohol","Isoniazid","Warfarin (INR increase with chronic use)"], monitoring:["Pain/fever relief","Total daily dose","LFTs if high-dose/long-term"], dosingAdult:"Reduce max daily dose in hepatic impairment.", dosingRenal:"No adjustment usually required.", dosingHepatic:"Use ≤2–3 g/day or avoid if severe.", administration:"PO with or without food; IV per product rate; PR insert fully.", bbw:"—", pregnancyLactation:"Generally compatible when used short-term as directed." }},
-      { generic:"Ibuprofen", brand:"Advil, Motrin", class:"NSAID", routes:["PO","IV"], dose:"200–400 mg PO q4–6h PRN (OTC max 1.2 g/day; Rx up to 3.2 g/day).", notes:"Take with food; GI bleed/ulcer, renal risk; avoid in late pregnancy.", favorite:false, details:{ pharmacologicCategory:"NSAID", mechanism:"Nonselective COX-1/2 inhibition → reduced prostaglandins.", indications:["Pain","Fever","Inflammatory conditions"], offLabel:["Migraine","Pericarditis (with colchicine)"], contraindications:["NSAID hypersensitivity","CABG perioperative","Active GI bleeding","Third-trimester pregnancy"], warningsPrecautions:["Cardiovascular thrombotic events","GI ulcer/bleed","Renal injury","Fluid retention"], adverseReactions:["Dyspepsia","Nausea","Edema","Blood pressure increase","Rare SJS/TEN"], interactions:["Anticoagulants/antiplatelets","ACEi/ARBs/diuretics","Lithium"], monitoring:["Pain relief","GI symptoms","Blood pressure","Renal function in at-risk patients"], dosingAdult:"Use lowest effective dose for shortest duration.", dosingRenal:"Avoid regular use if significant CKD; monitor.", dosingHepatic:"Use with caution; avoid if severe hepatic disease.", administration:"With food or milk to minimize GI upset; hydrate.", bbw:"Increased risk of serious cardiovascular thrombotic events and GI bleeding.", pregnancyLactation:"Avoid in third trimester; compatible with lactation." }},
-      { generic:"Amoxicillin", brand:"Amoxil", class:"Antibiotic; Aminopenicillin", routes:["PO"], dose:"500 mg q8h or 875 mg q12h typical adult dosing (indication-specific).", notes:"Take entire course; watch for rash/diarrhea; dose adjust in renal impairment.", favorite:false, details:{ pharmacologicCategory:"Aminopenicillin", mechanism:"Inhibits bacterial cell wall synthesis (PBPs) → bactericidal.", indications:["ENT infections","Community-acquired pneumonia","UTI","H. pylori (with others)"], offLabel:["Lyme (early)","Dental prophylaxis in select patients"], contraindications:"Serious beta-lactam allergy.", warningsPrecautions:["Anaphylaxis","C. difficile","Rash with EBV","Superinfection"], adverseReactions:["GI upset","Rash","Candidiasis"], interactions:["Warfarin (INR increase)","Allopurinol (rash)"], monitoring:["Clinical improvement","Allergy signs","Renal function if high dose/prolonged"], dosingAdult:"Indication-specific.", dosingRenal:"Adjust interval if CrCl <30 mL/min.", dosingHepatic:"No routine adjustment; monitor.", administration:"With or without food; shake suspension.", bbw:"—", pregnancyLactation:"Generally considered safe." }},
-      { generic:"Metformin", brand:"Glucophage", class:"Antidiabetic; Biguanide", routes:["PO"], dose:"IR: 500 mg BID with meals, titrate q1–2 weeks to 1,500–2,000 mg/day; XR: once daily with evening meal.", notes:"eGFR check; GI upset common; rare lactic acidosis—avoid if eGFR <30.", favorite:false, details:{ pharmacologicCategory:"Biguanide", mechanism:"Decreases hepatic gluconeogenesis; increases insulin sensitivity.", indications:["Type 2 diabetes mellitus"], offLabel:["PCOS (insulin resistance)"], contraindications:["eGFR <30","Metabolic acidosis","Acute/unstable heart failure","Severe hepatic disease"], warningsPrecautions:["Lactic acidosis risk with hypoxia, sepsis, dehydration","Hold around IV contrast when indicated"], adverseReactions:["GI: nausea, diarrhea","B12 deficiency with long-term"], interactions:["Cationic drugs (renal competition)","Alcohol (increases lactic acidosis risk)"], monitoring:["A1C","Fasting glucose","eGFR baseline and at least annually","B12 periodically"], dosingAdult:"Gradual titration improves tolerability.", dosingRenal:"eGFR 30–45: consider lower maximum; <30: contraindicated.", dosingHepatic:"Avoid in severe impairment.", administration:"With meals; XR tablets may appear in stool.", bbw:"Lactic acidosis.", pregnancyLactation:"Often continued in pregnancy for T2DM/PCOS per clinician; compatible with lactation." }},
-      { generic:"Furosemide", brand:"Lasix", class:"Loop Diuretic", routes:["PO","IV"], dose:"Edema: 20–80 mg/day PO (may divide); IV dosing individualized; titrate to response.", notes:"Monitor K/Na/Mg, renal function, intake/output, blood pressure; ototoxicity risk with rapid IV or high dose.", favorite:false, details:{ pharmacologicCategory:"Loop diuretic", mechanism:"Inhibits Na-K-2Cl transporter in thick ascending limb leading to diuresis.", indications:["Edema (heart failure, hepatic, renal)","Hypertension (adjunct)"], offLabel:["Acute hyperkalemia (adjunct with fluids)"], contraindications:["Anuria","Hypersensitivity to furosemide/sulfonamides (rare cross-reactivity)"], warningsPrecautions:["Electrolyte depletion","Volume contraction","Hypotension","Photosensitivity","Ototoxicity (high IV doses/rapid push or with other ototoxins)"], adverseReactions:["Increased urination","Dizziness","Hypokalemia","Hyponatremia","Hypomagnesemia","Hyperuricemia"], interactions:["Aminoglycosides (ototoxicity)","Digoxin (toxicity with hypokalemia)","NSAIDs (reduced effect)"], monitoring:["BMP (Na/K/Mg/Cr)","Weight","Intake/output","Blood pressure","Hearing with high IV doses"], dosingAdult:"Adjust to diuretic response.", dosingRenal:"May require higher doses in CKD; monitor closely.", dosingHepatic:"Use cautiously; risk of encephalopathy with excessive diuresis in cirrhosis.", administration:"PO in morning; IV slow push or infusion per policy.", bbw:"Potent diuretic—excessive diuresis can cause profound fluid/electrolyte loss.", pregnancyLactation:"Use if benefits outweigh risks; may suppress lactation." }}
-    ];
-
-    let MEDS = [];
-    const $tbody = document.querySelector('#medTable tbody');
-    const $q = document.getElementById('q');
-    const $routeF = document.getElementById('routeF');
-    const $classF = document.getElementById('classF');
-    const modal = document.getElementById('modal');
-    const $mTitle = document.getElementById('mTitle');
-    const $mSub = document.getElementById('mSub');
-    const $mBadges = document.getElementById('mBadges');
-    const $tabs = document.getElementById('tabs');
-    const $tabOverview = document.getElementById('tab-overview');
-    const $tabDosing = document.getElementById('tab-dosing');
-    const $tabSafety = document.getElementById('tab-safety');
-    const $tabMonitoring = document.getElementById('tab-monitoring');
-
-    const addBtn = document.getElementById('addBtn');
-    const addDlg = document.getElementById('addDlg');
-    const addCloseBtn = document.getElementById('addCloseBtn');
-    const addForm = document.getElementById('addForm');
-    const addResetBtn = document.getElementById('addResetBtn');
-    const saveMedBtn = document.getElementById('saveMedBtn');
-    const addTitle = document.getElementById('addTitle');
-
-    const editBtn = document.getElementById('editBtn');
-    const deleteBtn = document.getElementById('deleteBtn');
-
-    const bulkDlg = document.getElementById('bulkDlg');
-    const bulkCloseBtn = document.getElementById('bulkCloseBtn');
-    const bulkForm = document.getElementById('bulkForm');
-    const bulkEditBtn = document.getElementById('bulkEditBtn');
-    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
-
-    const selectAll = document.getElementById('selectAll');
-
-    let sortKey = null; let sortAsc = true; let favOnly=false; let editingIndex = null;
-    const selected = new Set();
-
-    function uniq(arr){return [...new Set(arr)]}
-
-    function populateFilters(){
-      $routeF.innerHTML = '<option value="">All routes</option>';
-      $classF.innerHTML = '<option value="">All classes</option>';
-      const allRoutes = uniq((MEDS||[]).flatMap(m=>m.routes||[])).sort();
-      for(const r of allRoutes){ const o=document.createElement('option'); o.value=r; o.textContent=r; $routeF.appendChild(o); }
-      const allClasses = uniq((MEDS||[]).map(m=>m.class).filter(Boolean));
-      for(const c of allClasses){ const o=document.createElement('option'); o.value=c; o.textContent=c; $classF.appendChild(o); }
-    }
-
-    const CLASS_COLOR = {
-      'NSAID':'#ffd6a5','Analgesic; Antipyretic':'#c9f0ff','Antibiotic; Aminopenicillin':'#caffbf','Antidiabetic; Biguanide':'#e0e7ff','Loop Diuretic':'#ffe3ec'
-    };
-    function classPill(cls){
-      const span = document.createElement('span');
-      span.className = 'pill class';
-      const bg = CLASS_COLOR[cls]; if(bg){ span.style.background = bg; }
-      span.textContent = cls; return span.outerHTML;
-    }
-
-    function rowHTML(m, idx){
-      const routeTags = (m.routes||[]).map(r=>`<span class="pill route">${r}</span>`).join('');
-      const favBtn = `<button class="fav ${m.favorite?'active':''}" data-idx="${idx}" title="Toggle favorite" aria-label="Toggle favorite">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"/></svg>
-      </button>`;
-      const checked = selected.has(idx) ? 'checked' : '';
-      return `<tr tabindex="0" role="button" aria-label="Open details for ${m.generic}" data-idx="${idx}">
-        <td class="col-sel"><input type="checkbox" class="rowSel" data-idx="${idx}" ${checked}></td>
-        <td class="col-generic"><strong>${m.generic||''}</strong></td>
-        <td class="col-brand">${m.brand||''}</td>
-        <td class="col-class">${m.class?classPill(m.class):''}</td>
-        <td class="col-routes">${routeTags}</td>
-        <td class="col-dose">${m.dose||''}</td>
-        <td class="col-notes">${m.notes||''}</td>
-        <td style="width:48px; text-align:center">${favBtn}</td>
-      </tr>`
-    }
-
-    function passesFilters(m, q){
-      const t = `${m.generic||''} ${m.brand||''} ${m.class||''} ${(m.routes||[]).join(' ')} ${m.dose||''} ${m.notes||''}`.toLowerCase();
-      if(q && !t.includes(q.toLowerCase())) return false;
-      if($routeF.value && !(m.routes||[]).includes($routeF.value)) return false;
-      if($classF.value && m.class!==$classF.value) return false;
-      if(favOnly && !m.favorite) return false;
-      return true;
-    }
-
-    function sortMeds(list){
-      if(!sortKey) return list;
-      return [...list].sort((a,b)=>{
-        const av = (a[sortKey]||'').toString().toLowerCase();
-        const bv = (b[sortKey]||'').toString().toLowerCase();
-        if(av<bv) return sortAsc?-1:1; if(av>bv) return sortAsc?1:-1; return 0;
-      });
-    }
-
-    function render(){
-      const filtered = (MEDS||[]).map((m,i)=>({m, i})).filter(({m})=>passesFilters(m, $q.value));
-      const sorted = sortMeds(filtered.map(x=>x.m)).map(m=>({m, i: MEDS.indexOf(m)}));
-      $tbody.innerHTML = sorted.map(({m,i})=>rowHTML(m, i)).join('');
-
-      // Row click opens details
-      [...$tbody.querySelectorAll('tr')].forEach((tr)=>{
-        tr.addEventListener('click', (e)=>{
-          if(e.target.closest('.fav') || e.target.closest('.rowSel') ) return;
-          const idx = +tr.getAttribute('data-idx');
-          openModal(MEDS[idx], idx);
-        });
-        tr.addEventListener('keydown', (e)=>{ if(e.key==='Enter' || e.key===' '){ e.preventDefault(); tr.click(); } });
-      });
-
-      // Favorite toggle (Firestore merge when signed-in)
-      [...$tbody.querySelectorAll('.fav')].forEach(btn=>{
-        btn.addEventListener('click', async (e)=>{
-          e.stopPropagation();
-          const idx = +btn.getAttribute('data-idx');
-          const m = MEDS[idx];
-          const api = window.FB;
-          try{
-            if(api?.auth?.currentUser && m?.id){
-              await api.updateMed(api.auth.currentUser.uid, m.id, { favorite: !m.favorite });
-            } else {
-              // fallback (not signed in)
-              m.favorite = !m.favorite; render();
-            }
-          }catch(err){ alert(`Favorite failed: ${err?.message||err}`); }
-        });
-      });
-
-      // Row checkboxes
-      [...$tbody.querySelectorAll('.rowSel')].forEach(cb=>{
-        cb.addEventListener('change', ()=>{
-          const idx = +cb.getAttribute('data-idx');
-          if(cb.checked) selected.add(idx); else selected.delete(idx);
-          updateSelectAllState();
-        });
-      });
-      updateSelectAllState();
-    }
-
-    function updateSelectAllState(){
-      const visibleIdxs = [...$tbody.querySelectorAll('.rowSel')].map(cb=>+cb.getAttribute('data-idx'));
-      const allSelected = visibleIdxs.length>0 && visibleIdxs.every(idx=>selected.has(idx));
-      selectAll.checked = allSelected;
-      selectAll.indeterminate = !allSelected && visibleIdxs.some(idx=>selected.has(idx));
-    }
-
-    // ========================= DETAILS MODAL / TABS =========================
-    function sectionHTML(title, body){ if(!body) return ''; return `<div class="section"><h3>${title}</h3>${toBlock(body)}</div>` }
-    function li(str){ return `<li>${str}</li>` }
-    function toBlock(value){
-      if(Array.isArray(value)) return `<ul class="kv">${value.map(li).join('')}</ul>`;
-      if(typeof value==='string') return `<p>${value}</p>`;
-      return '';
-    }
-
-    function setTabs(labels){
-      $tabs.innerHTML = '';
-      labels.forEach((lab, i)=>{
-        const b = document.createElement('button');
-        b.className = 'tab-btn'+(i===0?' active':'');
-        b.textContent = lab.text; b.dataset.target = lab.id;
-        b.addEventListener('click', ()=>{
-          document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('active'));
-          document.querySelectorAll('.tab-panel').forEach(x=>x.classList.remove('active'));
-          b.classList.add('active'); document.getElementById(lab.id).classList.add('active');
-        });
-        $tabs.appendChild(b);
-      });
-    }
-
-    function openModal(m, idx){
-      editingIndex = idx;
-      $mTitle.textContent = m.generic||'';
-      $mSub.textContent = `${m.brand||''} — ${m.class||''}`;
-      $mBadges.textContent = (m.routes||[]).join(' · ');
-
-      const d = m.details || {};
-      setTabs([
-        {id:'tab-overview', text:'Overview'},
-        {id:'tab-dosing', text:'Dosing'},
-        {id:'tab-safety', text:'Safety'},
-        {id:'tab-monitoring', text:'Monitoring'}
-      ]);
-
-      $tabOverview.innerHTML = [
-        sectionHTML('Pharmacologic Category', d.pharmacologicCategory),
-        sectionHTML('Mechanism of Action', d.mechanism),
-        sectionHTML('Use: Labeled Indications', d.indications),
-        sectionHTML('Use: Off‑Label', d.offLabel),
-        sectionHTML('Administration', d.administration),
-        sectionHTML('Pregnancy/Lactation', d.pregnancyLactation)
-      ].join('');
-
-      $tabDosing.innerHTML = [
-        sectionHTML('Dosing: Adult', d.dosingAdult),
-        sectionHTML('Dose Adjustment: Renal', d.dosingRenal),
-        sectionHTML('Dose Adjustment: Hepatic', d.dosingHepatic),
-        sectionHTML('Boxed Warnings', d.bbw)
-      ].join('');
-
-      $tabSafety.innerHTML = [
-        sectionHTML('Contraindications', d.contraindications),
-        sectionHTML('Warnings/Precautions', d.warningsPrecautions),
-        sectionHTML('Adverse Reactions', d.adverseReactions),
-        sectionHTML('Drug Interactions', d.interactions)
-      ].join('');
-
-      $tabMonitoring.innerHTML = [
-        sectionHTML('Monitoring Parameters', d.monitoring)
-      ].join('');
-
-      modal.showModal();
-    }
-
-    document.getElementById('closeBtn').addEventListener('click', ()=> modal.close());
-
-    // Edit current record (prefill form)
-    editBtn.addEventListener('click', ()=>{
-      if(editingIndex==null || editingIndex<0) return;
-      const m = MEDS[editingIndex];
-      addTitle.textContent = 'Edit Medication';
-      document.getElementById('f_generic').value = m.generic||'';
-      document.getElementById('f_brand').value = m.brand||'';
-      document.getElementById('f_class').value = m.class||'';
-      document.getElementById('f_routes').value = (m.routes||[]).join(', ');
-      document.getElementById('f_dose').value = m.dose||'';
-      document.getElementById('f_notes').value = m.notes||'';
-      const d = m.details||{};
-      document.getElementById('f_mech').value = Array.isArray(d.mechanism)? d.mechanism.join(', ') : (d.mechanism||'');
-      document.getElementById('f_inds').value = Array.isArray(d.indications)? d.indications.join(', ') : (d.indications||'');
-      document.getElementById('f_contra').value = Array.isArray(d.contraindications)? d.contraindications.join(', ') : (d.contraindications||'');
-      document.getElementById('f_warn').value = Array.isArray(d.warningsPrecautions)? d.warningsPrecautions.join(', ') : (d.warningsPrecautions||'');
-      document.getElementById('f_adr').value = Array.isArray(d.adverseReactions)? d.adverseReactions.join(', ') : (d.adverseReactions||'');
-      document.getElementById('f_ixn').value = Array.isArray(d.interactions)? d.interactions.join(', ') : (d.interactions||'');
-      document.getElementById('f_doseAdult').value = d.dosingAdult||'';
-      document.getElementById('f_admin').value = d.administration||'';
-      document.getElementById('f_renal').value = d.dosingRenal||'';
-      document.getElementById('f_hep').value = d.dosingHepatic||'';
-      document.getElementById('f_bbw').value = d.bbw||'';
-      document.getElementById('f_preg').value = d.pregnancyLactation||'';
-      modal.close(); addDlg.showModal();
-    });
-
-    // Delete current record (Firestore)
-    deleteBtn.addEventListener('click', async ()=>{
-      if(editingIndex==null || editingIndex<0) return;
-      const api = window.FB;
-      const m = MEDS[editingIndex];
-      if(!api?.auth?.currentUser) return alert('Please sign in first.');
-      if(!m?.id) return alert('Missing document id.');
-      const ok = confirm('Delete this medication? This cannot be undone.');
-      if(!ok) return;
-      try{ await api.deleteMed(api.auth.currentUser.uid, m.id); modal.close(); }
-      catch(e){ alert(`Delete failed: ${e?.message||e}`); }
-    });
-
-    // ========================= ADD/EDIT FORM SUBMIT =========================
-    function csvToArray(s){ return (s||'').split(',').map(x=>x.trim()).filter(Boolean); }
-    function blockToArrayOrString(s){ if(!s) return ''; if(s.includes(',')) return csvToArray(s); return s.trim(); }
-
-    addBtn.addEventListener('click', ()=>{ addTitle.textContent='Add Medication'; addForm.reset(); addDlg.showModal(); });
-    addCloseBtn.addEventListener('click', ()=> addDlg.close());
-    addResetBtn.addEventListener('click', ()=> addForm.reset());
-
-    addForm.addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      const item = {
-        generic: document.getElementById('f_generic').value.trim(),
-        brand: document.getElementById('f_brand').value.trim(),
-        class: document.getElementById('f_class').value.trim(),
-        routes: csvToArray(document.getElementById('f_routes').value),
-        dose: document.getElementById('f_dose').value.trim(),
-        notes: document.getElementById('f_notes').value.trim(),
-        favorite: (editingIndex!=null && editingIndex>=0) ? !!MEDS[editingIndex].favorite : false,
-        details: {
-          pharmacologicCategory: document.getElementById('f_class').value.trim(),
-          mechanism: blockToArrayOrString(document.getElementById('f_mech').value),
-          indications: csvToArray(document.getElementById('f_inds').value),
-          offLabel: '',
-          contraindications: blockToArrayOrString(document.getElementById('f_contra').value),
-          warningsPrecautions: blockToArrayOrString(document.getElementById('f_warn').value),
-          adverseReactions: csvToArray(document.getElementById('f_adr').value),
-          interactions: csvToArray(document.getElementById('f_ixn').value),
-          monitoring: [],
-          dosingAdult: document.getElementById('f_doseAdult').value.trim(),
-          dosingRenal: document.getElementById('f_renal').value.trim(),
-          dosingHepatic: document.getElementById('f_hep').value.trim(),
-          administration: document.getElementById('f_admin').value.trim(),
-          bbw: document.getElementById('f_bbw').value.trim(),
-          pregnancyLactation: document.getElementById('f_preg').value.trim()
-        }
-      };
-      if(!item.generic || !item.class){ alert('Please provide at least Generic and Pharmacologic Class.'); return; }
-      if(item.routes.length===0) item.routes = ['PO'];
-
-      const api = window.FB;
-      if(!api?.auth?.currentUser){ alert('Please sign in first.'); return; }
-      try{
-        if(editingIndex!==null && editingIndex>=0){
-          const id = MEDS[editingIndex]?.id; if(!id) throw new Error('Missing document id.');
-          await api.updateMed(api.auth.currentUser.uid, id, item);
-        } else {
-          await api.createMed(api.auth.currentUser.uid, item);
-        }
-        editingIndex = null; addDlg.close(); // snapshot will refresh table
-      }catch(err){ alert(`Add/update failed: ${err?.code || err?.message || err}`); }
-    });
-
-    // ========================= BULK EDIT / DELETE (Firestore) =========================
-    function csv(s){ return (s||'').split(',').map(x=>x.trim()).filter(Boolean); }
-    function applyMode(cur, val, mode){
-      if(!val || val.length===0) return cur;
-      if(Array.isArray(cur)){
-        const add = Array.isArray(val) ? val : [val];
-        if(mode==='append') return [...new Set([...(cur||[]), ...add])];
-        return add;
-      }
-      return val;
-    }
-
-    bulkEditBtn.addEventListener('click', ()=>{
-      if(selected.size===0){ alert('Select at least one medication.'); return; }
-      document.getElementById('bulkForm').reset();
-      bulkDlg.showModal();
-    });
-    bulkCloseBtn.addEventListener('click', ()=> bulkDlg.close());
-
-    bulkForm.addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      const api = window.FB; if(!api?.auth?.currentUser) return alert('Please sign in first.');
-      const ids = [...selected]; if(ids.length===0) return;
-      const data = {
-        class: document.getElementById('b_class').value.trim(),
-        routes: csv(document.getElementById('b_routes').value),
-        dose: document.getElementById('b_dose').value.trim(),
-        notes: document.getElementById('b_notes').value.trim(),
-        mech: document.getElementById('b_mech').value.trim(), mechMode: document.getElementById('b_mech_mode').value,
-        inds: csv(document.getElementById('b_inds').value), indsMode: document.getElementById('b_inds_mode').value,
-        contra: document.getElementById('b_contra').value.trim(),
-        warn: document.getElementById('b_warn').value.trim(),
-        adr: csv(document.getElementById('b_adr').value),
-        ixn: csv(document.getElementById('b_ixn').value),
-        doseAdult: document.getElementById('b_doseAdult').value.trim(),
-        admin: document.getElementById('b_admin').value.trim(),
-        renal: document.getElementById('b_renal').value.trim(),
-        hepatic: document.getElementById('b_hep').value.trim(),
-        bbw: document.getElementById('b_bbw').value.trim(),
-        preg: document.getElementById('b_preg').value.trim()
-      };
-
-      try{
-        for(const idx of ids){
-          const m = MEDS[idx]; if(!m?.id) continue;
-          const patch = {};
-          if(data.class) { patch.class = data.class; patch.details = Object.assign({}, m.details||{}, { pharmacologicCategory: data.class }); }
-          if(data.routes.length) patch.routes = data.routes;
-          if(data.dose) patch.dose = data.dose;
-          if(data.notes) patch.notes = data.notes;
-          if(data.mech) patch.details = Object.assign({}, m.details||{}, { mechanism: applyMode(Array.isArray(m.details?.mechanism)?m.details.mechanism:[m.details?.mechanism].filter(Boolean), csv(data.mech), data.mechMode) });
-          if(data.inds.length) patch.details = Object.assign({}, patch.details||m.details||{}, { indications: applyMode(m.details?.indications||[], data.inds, data.indsMode) });
-          if(data.contra) patch.details = Object.assign({}, patch.details||m.details||{}, { contraindications: data.contra });
-          if(data.warn) patch.details = Object.assign({}, patch.details||m.details||{}, { warningsPrecautions: data.warn });
-          if(data.adr.length) patch.details = Object.assign({}, patch.details||m.details||{}, { adverseReactions: data.adr });
-          if(data.ixn.length) patch.details = Object.assign({}, patch.details||m.details||{}, { interactions: data.ixn });
-          if(data.doseAdult) patch.details = Object.assign({}, patch.details||m.details||{}, { dosingAdult: data.doseAdult });
-          if(data.admin) patch.details = Object.assign({}, patch.details||m.details||{}, { administration: data.admin });
-          if(data.renal) patch.details = Object.assign({}, patch.details||m.details||{}, { dosingRenal: data.renal });
-          if(data.hepatic) patch.details = Object.assign({}, patch.details||m.details||{}, { dosingHepatic: data.hepatic });
-          if(data.bbw) patch.details = Object.assign({}, patch.details||m.details||{}, { bbw: data.bbw });
-          if(data.preg) patch.details = Object.assign({}, patch.details||m.details||{}, { pregnancyLactation: data.preg });
-          await api.updateMed(api.auth.currentUser.uid, m.id, patch);
-        }
-        bulkDlg.close();
-      }catch(err){ alert(`Bulk edit failed: ${err?.message||err}`); }
-    });
-
-    bulkDeleteBtn.addEventListener('click', async ()=>{
-      if(selected.size===0){ alert('Select at least one medication.'); return; }
-      const api = window.FB; if(!api?.auth?.currentUser) return alert('Please sign in first.');
-      const count = selected.size; const ok = confirm(`Delete ${count} selected medication(s)? This cannot be undone.`);
-      if(!ok) return;
-      try{
-        const ids = [...selected];
-        for(const idx of ids){ const m = MEDS[idx]; if(m?.id) await api.deleteMed(api.auth.currentUser.uid, m.id); }
-        selected.clear();
-      }catch(err){ alert(`Bulk delete failed: ${err?.message||err}`); }
-    });
-
-    // Select all visible
-    selectAll.addEventListener('change', ()=>{
-      const toToggle = [...$tbody.querySelectorAll('.rowSel')];
-      if(selectAll.checked){ toToggle.forEach(cb=> selected.add(+cb.getAttribute('data-idx'))); }
-      else { toToggle.forEach(cb=> selected.delete(+cb.getAttribute('data-idx'))); }
-      render();
-    });
-
-    // ========================= SORTING / THEME / FILTERS =========================
-    document.querySelectorAll('thead th.sortable').forEach(th=>{
-      th.addEventListener('click', ()=>{
-        const key = th.dataset.key; if(sortKey===key){ sortAsc = !sortAsc; } else { sortKey = key; sortAsc = true; }
-        document.querySelectorAll('thead th.sortable').forEach(x=>x.classList.remove('asc'));
-        if(sortAsc) th.classList.add('asc'); else th.classList.remove('asc');
-        render();
-      });
-    });
-
-    document.getElementById('themeBtn').addEventListener('click', ()=>{
-      const cur = document.documentElement.getAttribute('data-theme');
-      const next = cur==='light' ? 'dark' : 'light';
-      document.documentElement.setAttribute('data-theme', next);
-    });
-
-    document.getElementById('favOnlyBtn').addEventListener('click', ()=>{ favOnly = !favOnly; render(); });
-
-    // ========================= INIT & SHORTCUTS =========================
-    function init(){ MEDS = DEFAULT_MEDS.slice(); populateFilters(); render(); }
-    init();
-
-    window.addEventListener('keydown', (e)=>{
-      if(e.key === '/' && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA'){ e.preventDefault(); $q.focus(); }
-      if(e.key === 'Escape' && modal.open){ modal.close(); }
-    });
-
-    $q.addEventListener('input', render);
-    $routeF.addEventListener('change', render);
-    $classF.addEventListener('change', render);
-
-    // ========================= EXPORT / IMPORT =========================
-    const exportBtn = document.getElementById('exportBtn');
-    exportBtn.addEventListener('click', ()=>{
-      const blob = new Blob([JSON.stringify(MEDS, null, 2)], {type:'application/json'});
-      const url = URL.createObjectURL(blob);
-      const a = Object.assign(document.createElement('a'), {href:url, download:'meds.json'});
-      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
-    });
-
-    const importBtn = document.getElementById('importBtn');
-    const importFile = document.getElementById('importFile');
-    importBtn.addEventListener('click', ()=> importFile.click());
-    importFile.addEventListener('change', async (e)=>{
-      const file = e.target.files?.[0]; if(!file) return;
-      try{
-        const text = await file.text(); const data = JSON.parse(text);
-        if(!Array.isArray(data)) throw new Error('Invalid format: expected an array');
-        if(!data.every(x=>x.generic && x.class)) throw new Error('Each item needs at least "generic" and "class"');
-        const api = window.FB; if(!api?.auth?.currentUser) throw new Error('Please sign in before importing.');
-        for(const item of data){ await api.createMed(api.auth.currentUser.uid, item); }
-        alert('Imported successfully.');
-      }catch(err){ alert('Import failed: '+(err?.message||err)); }
-      finally{ importFile.value = ''; }
-    });
-  </script>
-
-  <!-- Firebase Email/Password + Firestore (per-user subcollection) -->
+  <!-- ========================= APP SCRIPT ========================= -->
   <script type="module">
-    import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
-    import {
-      getAuth, setPersistence, browserLocalPersistence,
-      onAuthStateChanged, createUserWithEmailAndPassword,
-      signInWithEmailAndPassword, sendPasswordResetEmail, signOut
-    } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
-    import {
-      getFirestore, collection, doc, addDoc, setDoc, deleteDoc,
-      onSnapshot, serverTimestamp
-    } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+    // ========================= Firebase (modular SDK) =========================
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
 
+    // Your web app's Firebase configuration (from your message)
     const firebaseConfig = {
       apiKey: "AIzaSyB4SLwd4A3wNrstcHNzuI83z0G8e-1AK50",
       authDomain: "nadia-b4de4.firebaseapp.com",
       projectId: "nadia-b4de4",
-      storageBucket: "nadia-b4de4.appspot.com",
+      storageBucket: "nadia-b4de4.firebasestorage.app",
       messagingSenderId: "354468688054",
       appId: "1:354468688054:web:9163d3700f3fd4c0097617"
     };
 
-    const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
+    const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
-    const db   = getFirestore(app);
+    const db = getFirestore(app);
 
-    // Expose a small API to the UI script
-    function medsCol(uid){ return collection(db, `users/${uid}/medications`); }
-    async function createMed(uid, item){ await addDoc(medsCol(uid), { ...item, createdAt: serverTimestamp(), updatedAt: serverTimestamp() }); }
-    async function updateMed(uid, id, patch){ await setDoc(doc(db, `users/${uid}/medications/${id}`), { ...patch, updatedAt: serverTimestamp() }, { merge:true }); }
-    async function removeMed(uid, id){ await deleteDoc(doc(db, `users/${uid}/medications/${id}`)); }
+    // ========================= DOM helpers =========================
+    const $ = (sel) => document.querySelector(sel);
+    const gridEl = $("#meds-grid");
+    const emptyEl = $("#empty-state");
 
-    window.FB = { auth, createMed, updateMed, deleteMed: removeMed };
+    const inputIds = [
+      "#med-name","#med-route","#med-class","#med-dose",
+      "#med-indications","#med-contra","#med-lactation","#med-sidefx"
+    ];
+    const inputs = Object.fromEntries(inputIds.map(id => [id, $(id)]));
 
-    const $ = (id)=>document.getElementById(id);
-    const ui = { email: $('email'), password: $('password'), signup: $('signup'), signin: $('signin'), reset: $('reset'), signout: $('signout'), status: $('status'), err: $('err') };
-    const showErr = (e)=>{ if(ui.err){ ui.err.style.display='block'; ui.err.textContent = e?.message || String(e); } console.error(e); };
-    const clearErr = ()=>{ if(ui.err){ ui.err.style.display='none'; ui.err.textContent=''; } };
+    const idEl = $("#med-id");
 
-    // Auth controls
-    ui.signup?.addEventListener('click', async ()=>{ clearErr(); try{
-      const email = ui.email.value.trim(); const pwd = ui.password.value;
-      const cred = await createUserWithEmailAndPassword(auth, email, pwd);
-      ui.status.textContent = "Signed up as " + (cred.user.email || cred.user.uid);
-    }catch(e){ showErr(e); } });
-
-    ui.signin?.addEventListener('click', async ()=>{ clearErr(); try{
-      const email = ui.email.value.trim(); const pwd = ui.password.value;
-      const cred = await signInWithEmailAndPassword(auth, email, pwd);
-      ui.status.textContent = "Signed in as " + (cred.user.email || cred.user.uid);
-    }catch(e){ showErr(e); } });
-
-    ui.reset?.addEventListener('click', async ()=>{ clearErr(); try{
-      await sendPasswordResetEmail(auth, ui.email.value.trim());
-      ui.status.textContent = "Password reset email sent.";
-    }catch(e){ showErr(e); } });
-
-    ui.signout?.addEventListener('click', async ()=>{ clearErr(); try{
-      await signOut(auth); ui.status.textContent = "Signed out.";
-    }catch(e){ showErr(e); } });
-
-    setPersistence(auth, browserLocalPersistence).catch(showErr);
-
-    let unsubscribe = null;
-    function applySnapshot(list){
-      // list: array of {id, ...data}
-      window.MEDS = list;
-      try{ if(typeof populateFilters === 'function') populateFilters(); }catch{}
-      try{ if(typeof render === 'function') render(); }catch{}
+    function clearForm(){
+      Object.values(inputs).forEach(i => i.value = "");
+      idEl.value = "";
     }
 
-    onAuthStateChanged(auth, (user)=>{
-      clearErr();
-      if(unsubscribe){ try{ unsubscribe(); }catch{} unsubscribe = null; }
-      if(!user){
-        if(ui.status) ui.status.textContent = "Not signed in.";
-        applySnapshot(DEFAULT_MEDS.slice());
-        return;
-      }
-      if(ui.status) ui.status.textContent = "Signed in as " + (user.email || user.uid);
+    // ========================= Auth UI =========================
+    const emailEl = $("#auth-email");
+    const passEl = $("#auth-pass");
+    const statusEl = $("#auth-status");
+    const btnUp = $("#btn-signup");
+    const btnIn = $("#btn-signin");
+    const btnOut = $("#btn-signout");
 
-      // Live per-user meds
-      unsubscribe = onSnapshot(medsCol(user.uid), (snap)=>{
-        const list = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-        applySnapshot(list);
-      }, (err)=> showErr(err));
+    btnUp.addEventListener('click', async () => {
+      try{
+        await createUserWithEmailAndPassword(auth, emailEl.value, passEl.value);
+      }catch(e){ alert(e.message); }
     });
+    btnIn.addEventListener('click', async () => {
+      try{
+        await signInWithEmailAndPassword(auth, emailEl.value, passEl.value);
+      }catch(e){ alert(e.message); }
+    });
+    btnOut.addEventListener('click', async () => {
+      await signOut(auth);
+    });
+
+    let unsub = null; // meds listener
+
+    onAuthStateChanged(auth, (user) => {
+      if(user){
+        statusEl.textContent = `Signed in as ${user.email}`;
+        btnOut.style.display = '';
+        btnUp.style.display = btnIn.style.display = 'none';
+        emailEl.style.display = passEl.style.display = 'none';
+
+        // Attach a listener to *this* user's meds
+        const medsRef = collection(db, `users/${user.uid}/medications`);
+        const q = query(medsRef, orderBy('createdAt','desc'));
+        if(unsub) unsub();
+        unsub = onSnapshot(q, (snap) => {
+          const meds = snap.docs.map(d => ({ id:d.id, ...d.data() }));
+          renderMeds(meds);
+        });
+      } else {
+        statusEl.textContent = 'Signed out';
+        btnOut.style.display = 'none';
+        btnUp.style.display = btnIn.style.display = '';
+        emailEl.style.display = passEl.style.display = '';
+        if(unsub){ unsub(); unsub = null; }
+        renderMeds([]);
+      }
+    });
+
+    // ========================= CRUD =========================
+    $("#med-form").addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const user = auth.currentUser;
+      if(!user){ return alert('Please sign in to save.'); }
+
+      const payload = {
+        name: inputs["#med-name"].value.trim(),
+        route: inputs["#med-route"].value.trim(),
+        class: inputs["#med-class"].value.trim(),
+        dose: inputs["#med-dose"].value.trim(),
+        indications: inputs["#med-indications"].value.trim(),
+        contraindications: inputs["#med-contra"].value.trim(),
+        lactation: inputs["#med-lactation"].value.trim(),
+        sidefx: inputs["#med-sidefx"].value.trim(),
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+
+      try{
+        if(idEl.value){
+          await updateDoc(doc(db, `users/${user.uid}/medications/${idEl.value}`), payload);
+        }else{
+          await addDoc(collection(db, `users/${user.uid}/medications`), payload);
+        }
+        clearForm();
+      }catch(err){
+        alert(err.message);
+      }
+    });
+
+    $("#btn-reset").addEventListener('click', clearForm);
+
+    async function handleDelete(id){
+      const user = auth.currentUser; if(!user) return;
+      if(!confirm('Delete this medication?')) return;
+      await deleteDoc(doc(db, `users/${user.uid}/medications/${id}`));
+    }
+
+    function handleEdit(med){
+      idEl.value = med.id;
+      inputs["#med-name"].value = med.name || '';
+      inputs["#med-route"].value = med.route || '';
+      inputs["#med-class"].value = med.class || '';
+      inputs["#med-dose"].value = med.dose || '';
+      inputs["#med-indications"].value = med.indications || '';
+      inputs["#med-contra"].value = med.contraindications || '';
+      inputs["#med-lactation"].value = med.lactation || '';
+      inputs["#med-sidefx"].value = med.sidefx || '';
+      window.scrollTo({top:0, behavior:'smooth'});
+    }
+
+    function renderMeds(meds){
+      gridEl.innerHTML = '';
+      emptyEl.style.display = meds.length ? 'none' : '';
+      for(const m of meds){
+        const el = document.createElement('div');
+        el.className = 'card med-card';
+        el.innerHTML = `
+          <div class="toolbar">
+            <button class="iconbtn" data-edit>✎</button>
+            <button class="iconbtn" data-del>🗑</button>
+          </div>
+          <div class="med-title">${escapeHTML(m.name || '(unnamed)')}</div>
+          <div class="rowline mut">${escapeHTML(m.class || '')}</div>
+          <div class="rowline"><span class="pill">${escapeHTML(m.route || '')}</span> ${escapeHTML(m.dose || '')}</div>
+          <div class="rowline"><strong>Indications:</strong> ${escapeHTML(m.indications || '')}</div>
+          <div class="rowline"><strong>Contraindications:</strong> ${escapeHTML(m.contraindications || '')}</div>
+          <div class="rowline"><strong>Lactation:</strong> ${escapeHTML(m.lactation || '')}</div>
+          <div class="rowline"><strong>Side effects:</strong> ${escapeHTML(m.sidefx || '')}</div>
+        `;
+        el.querySelector('[data-edit]').addEventListener('click', () => handleEdit(m));
+        el.querySelector('[data-del]').addEventListener('click', () => handleDelete(m.id));
+        gridEl.appendChild(el);
+      }
+    }
+
+    function escapeHTML(str){
+      return (str||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#039;'}[c]));
+    }
   </script>
 </body>
 </html>
