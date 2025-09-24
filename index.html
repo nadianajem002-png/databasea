@@ -550,33 +550,62 @@
     document.getElementById('addResetBtn').addEventListener('click', ()=> addForm.reset());
 
     addForm.addEventListener('submit', async (e)=>{
-      e.preventDefault();
-      const item = {
-        generic: document.getElementById('f_generic').value.trim(),
-        brand: document.getElementById('f_brand').value.trim(),
-        class: document.getElementById('f_class').value.trim(),
-        routes: csvToArray(document.getElementById('f_routes').value),
-        dose: document.getElementById('f_dose').value.trim(),
-        notes: document.getElementById('f_notes').value.trim(),
-        favorite: (editingIndex!=null && editingIndex>=0) ? !!MEDS[editingIndex].favorite : false,
-        details: {
-          pharmacologicCategory: document.getElementById('f_class').value.trim(),
-          mechanism: blockToArrayOrString(document.getElementById('f_mech').value),
-          indications: csvToArray(document.getElementById('f_inds').value),
-          offLabel: '',
-          contraindications: blockToArrayOrString(document.getElementById('f_contra').value),
-          warningsPrecautions: blockToArrayOrString(document.getElementById('f_warn').value),
-          adverseReactions: csvToArray(document.getElementById('f_adr').value),
-          interactions: csvToArray(document.getElementById('f_ixn').value),
-          monitoring: [],
-          dosingAdult: document.getElementById('f_doseAdult').value.trim(),
-          dosingRenal: document.getElementById('f_renal').value.trim(),
-          dosingHepatic: document.getElementById('f_hep').value.trim(),
-          administration: document.getElementById('f_admin').value.trim(),
-          bbw: document.getElementById('f_bbw').value.trim(),
-          pregnancyLactation: document.getElementById('f_preg').value.trim()
-        }
-      };
+  e.preventDefault();
+
+  const item = {
+    generic: document.getElementById('f_generic').value.trim(),
+    brand: document.getElementById('f_brand').value.trim(),
+    class: document.getElementById('f_class').value.trim(),
+    routes: csvToArray(document.getElementById('f_routes').value),
+    dose: document.getElementById('f_dose').value.trim(),
+    notes: document.getElementById('f_notes').value.trim(),
+    favorite: (editingIndex!=null && editingIndex>=0) ? !!MEDS[editingIndex].favorite : false,
+    details: {
+      pharmacologicCategory: document.getElementById('f_class').value.trim(),
+      mechanism: blockToArrayOrString(document.getElementById('f_mech').value),
+      indications: csvToArray(document.getElementById('f_inds').value),
+      offLabel: '',
+      contraindications: blockToArrayOrString(document.getElementById('f_contra').value),
+      warningsPrecautions: blockToArrayOrString(document.getElementById('f_warn').value),
+      adverseReactions: csvToArray(document.getElementById('f_adr').value),
+      interactions: csvToArray(document.getElementById('f_ixn').value),
+      monitoring: [],
+      dosingAdult: document.getElementById('f_doseAdult').value.trim(),
+      dosingRenal: document.getElementById('f_renal').value.trim(),
+      dosingHepatic: document.getElementById('f_hep').value.trim(),
+      administration: document.getElementById('f_admin').value.trim(),
+      bbw: document.getElementById('f_bbw').value.trim(),
+      pregnancyLactation: document.getElementById('f_preg').value.trim()
+    }
+  };
+
+  if (!item.generic || !item.class) { 
+    alert('Please provide at least Generic and Pharmacologic Class.'); 
+    return; 
+  }
+  if (item.routes.length === 0) item.routes = ['PO'];
+
+  // Firestore calls + error surfacing
+  const api = window.FB;
+  if (!api?.auth?.currentUser) {
+    alert('Please sign in first.');
+    return;
+  }
+
+  try {
+    if (editingIndex !== null && editingIndex >= 0) {
+      const id = MEDS[editingIndex]?.id;
+      if (!id) throw new Error('Missing document id.');
+      await api.updateMed(api.auth.currentUser.uid, id, item);
+    } else {
+      await api.createMed(api.auth.currentUser.uid, item);
+    }
+    editingIndex = null;
+    addDlg.close(); // live Firestore snapshot will refresh the table
+  } catch (e) {
+    alert(`Add/update failed: ${e?.code || e?.message || e}`);
+  }
+});
       if(!item.generic || !item.class){ alert('Please provide at least Generic and Pharmacologic Class.'); return; }
       if(item.routes.length===0) item.routes = ['PO'];
 
