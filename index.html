@@ -719,152 +719,146 @@
 
 <!-- Firebase Email/Password + Firestore adapter (fixed) -->
 <script type="module">
-  import { getApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
+  import { initializeApp, getApps, getApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
   import {
-    getAuth, onAuthStateChanged, setPersistence, browserLocalPersistence,
-    createUserWithEmailAndPassword, signInWithEmailAndPassword,
-    sendPasswordResetEmail, signOut
+    getAuth, setPersistence, browserLocalPersistence,
+    onAuthStateChanged, createUserWithEmailAndPassword,
+    signInWithEmailAndPassword, sendPasswordResetEmail, signOut
   } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
   import {
     getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp
   } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 
-  // Reuse the app you already initialized earlier in the page:
-  const app  = getApp();
+  const firebaseConfig = {
+    apiKey: "AIzaSyB4SLwd4A3wNrstcHNzuI83z0G8e-1AK50",
+    authDomain: "nadia-b4de4.firebaseapp.com",
+    projectId: "nadia-b4de4",
+    storageBucket: "nadia-b4de4.appspot.com",
+    messagingSenderId: "354468688054",
+    appId: "1:354468688054:web:9163d3700f3fd4c0097617"
+  };
+
+  const app = getApps().length ? getApp() : initializeApp(firebaseConfig);
   const auth = getAuth(app);
   const db   = getFirestore(app);
+  console.log("[INIT] projectId =", app.options.projectId);
 
-  // Persist login across refreshes (no top-level await)
-  setPersistence(auth, browserLocalPersistence).catch(console.error);
+  setPersistence(auth, browserLocalPersistence).then(() => {
+    console.log("[AUTH] Persistence ON");
+  }).catch(e => console.error("[AUTH] Persistence error:", e));
 
-  // Helpers
   const $ = (id)=>document.getElementById(id);
-  const statusEl = $('status');
-  const showStatus = (t)=>{ if(statusEl) statusEl.textContent = t; };
-  const showErr = (e)=>{ const err=$('err'); if(err){ err.style.display='block'; err.textContent=(e?.message||String(e)); } console.error(e); };
-
-  // Per-user localStorage namespace
-  let LS_KEY = "MEDS_DB_guest";
-  const setLocalKey = (uid)=> LS_KEY = uid ? `MEDS_DB_${uid}` : "MEDS_DB_guest";
-  const readLocal = () => {
-    try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (typeof MEDS !== "undefined") MEDS = raw ? JSON.parse(raw) : [];
-    } catch (e) { console.warn("local read fail", e); }
+  const ui = {
+    email: $('email'), password: $('password'),
+    signup: $('signup'), signin: $('signin'), reset: $('reset'), signout: $('signout'),
+    status: $('status'), err: $('err')
   };
-  const writeLocal = () => {
-    try {
-      localStorage.setItem(LS_KEY, JSON.stringify(typeof MEDS !== "undefined" ? MEDS : []));
-    } catch (e) { console.warn("local write fail", e); }
-  };
+  const showErr = (e)=>{ if(ui.err){ ui.err.style.display='block'; ui.err.textContent = e?.message || String(e); } console.error(e); };
+  const clearErr = ()=>{ if(ui.err){ ui.err.style.display='none'; ui.err.textContent=''; } };
 
-  // Cloud doc path
-  const userDoc = (uid) => doc(db, `users/${uid}/app/meds`);
+  ui.signup?.addEventListener('click', async ()=>{ clearErr(); try{
+    const email = ui.email.value.trim(); const pwd = ui.password.value;
+    const cred = await createUserWithEmailAndPassword(auth, email, pwd);
+    ui.status.textContent = "Signed up as " + (cred.user.email || cred.user.uid);
+  }catch(e){ showErr(e); } });
 
-  // Wrap your original functions (once they exist)
-  const wrapPersistence = () => {
-    if (typeof saveLocal === "function" && !window._origSaveLocal) {
-      window._origSaveLocal = saveLocal;
-      window.saveLocal = async function () {
-        // keep original local behavior
-        try { window._origSaveLocal(); } catch {}
-        // also write to per-uid local cache
-        writeLocal();
-        // also save to cloud for the current user
-        const u = auth.currentUser;
-        if (!u) return;
-        try {
-          await setDoc(userDoc(u.uid), {
-            items: (typeof MEDS !== "undefined" ? MEDS : []),
-            updatedAt: serverTimestamp()
-          }, { merge: true });
-        } catch (e) { showErr(e); }
-      };
-      console.log("[WRAP] saveLocal -> local(per-uid)+cloud");
-    }
+  ui.signin?.addEventListener('click', async ()=>{ clearErr(); try{
+    const email = ui.email.value.trim(); const pwd = ui.password.value;
+    const cred = await signInWithEmailAndPassword(auth, email, pwd);
+    ui.status.textContent = "Signed in as " + (cred.user.email || cred.user.uid);
+  }catch(e){ showErr(e); } });
 
-    if (typeof loadLocal === "function" && !window._origLoadLocal) {
-      window._origLoadLocal = loadLocal;
-      window.loadLocal = async function () {
-        const u = auth.currentUser;
-        if (!u) { // no user: fall back to guest local
-          setLocalKey(null);
-          window._origLoadLocal(); // preserves your defaults
-          readLocal();             // prefer guest-local if present
-          if (typeof render === "function") render();
-          return;
-        }
-        // signed in: per-uid local + cloud-first
-        setLocalKey(u.uid);
-        try {
-          const snap = await getDoc(userDoc(u.uid));
-          if (snap.exists() && snap.data().items) {
-            if (typeof MEDS !== "undefined") MEDS = snap.data().items;
-          } else {
-            // seed from this user's local cache or from your defaults
-            readLocal();
-            // ensure cloud has a copy for this user
-            await setDoc(userDoc(u.uid), { items: (typeof MEDS !== "undefined" ? MEDS : []) }, { merge: true });
-          }
-        } catch (e) {
-          console.warn("[CLOUD LOAD] failed; using per-uid local", e);
-          readLocal();
-        }
-        writeLocal(); // keep per-uid cache fresh
-        if (typeof render === "function") render();
-      };
-      console.log("[WRAP] loadLocal -> cloud-first(per-uid)");
-    }
-  };
+  ui.reset?.addEventListener('click', async ()=>{ clearErr(); try{
+    await sendPasswordResetEmail(auth, ui.email.value.trim());
+    ui.status.textContent = "Password reset email sent.";
+  }catch(e){ showErr(e); } });
+
+  ui.signout?.addEventListener('click', async ()=>{ clearErr(); try{
+    await signOut(auth); ui.status.textContent = "Signed out.";
+  }catch(e){ showErr(e); } });
 
   let unsub = null;
-  onAuthStateChanged(auth, (user) => {
-    // clear any live listener for previous user
-    if (unsub) { unsub(); unsub = null; }
+  function docRefFor(uid){ return doc(db, `users/${uid}/app/meds`); }
 
-    if (!user) {
-      showStatus && showStatus("Not signed in.");
-      setLocalKey(null);
-      // load guest data (your original defaults or guest cache)
-      if (typeof window._origLoadLocal === "function") window._origLoadLocal();
-      else if (typeof loadLocal === "function") loadLocal();
-      readLocal();
-      if (typeof render === "function") render();
+  function safeRender(){ try{ if(typeof render === 'function') render(); } catch(e){ console.warn('[RENDER] not ready', e); } }
+
+  async function saveToCloud(){
+    try{
+      if(typeof window._origSaveLocal === 'function'){ window._origSaveLocal(); }
+      else if(typeof saveLocal === 'function'){ saveLocal(); }
+    }catch(e){ console.warn('[LOCAL SAVE] failed', e); }
+    try{
+      const user = auth.currentUser;
+      if(!user){ console.warn('[CLOUD SAVE] no user'); return; }
+      const data = { items: (typeof MEDS !== 'undefined' ? MEDS : []), updatedAt: serverTimestamp() };
+      await setDoc(docRefFor(user.uid), data, { merge: true });
+      console.log('[CLOUD SAVE] ok, items=', data.items?.length || 0);
+    }catch(e){ showErr(e); }
+  }
+
+  const wrapPersistence = () => {
+    if(typeof saveLocal === 'function' && !window._origSaveLocal){
+      window._origSaveLocal = saveLocal;
+      window.saveLocal = async function(){ await saveToCloud(); };
+      console.log('[WRAP] saveLocal -> cloud+local');
+    }
+    if(typeof loadLocal === 'function' && !window._origLoadLocal){
+      window._origLoadLocal = loadLocal;
+      window.loadLocal = async function(){
+        try{
+          const user = auth.currentUser;
+          if(!user){ window._origLoadLocal(); safeRender(); return; }
+          const snap = await getDoc(docRefFor(user.uid));
+          if(snap.exists() && snap.data().items){
+            if(typeof MEDS !== 'undefined') MEDS = snap.data().items;
+            console.log('[CLOUD LOAD] items=', MEDS.length);
+          }else{
+            window._origLoadLocal();
+            await saveToCloud();
+            console.log('[CLOUD LOAD] no doc; seeded from local');
+          }
+          safeRender();
+        }catch(e){
+          console.warn('[CLOUD LOAD] failed; using local', e);
+          window._origLoadLocal(); safeRender();
+        }
+      };
+      console.log('[WRAP] loadLocal -> cloud-first');
+    }
+  };
+
+  onAuthStateChanged(auth, (user)=>{
+    clearErr();
+    if(unsub){ unsub(); unsub = null; }
+    if(!user){
+      if(ui.status) ui.status.textContent = "Not signed in.";
+      if(typeof window._origLoadLocal === 'function'){ window._origLoadLocal(); }
+      else if(typeof loadLocal === 'function'){ loadLocal(); }
+      safeRender();
       return;
     }
+    if(ui.status) ui.status.innerHTML = "Signed in as " + (user.email || user.uid);
 
-    showStatus && showStatus(`Signed in as ${user.email || user.uid}`);
-    setLocalKey(user.uid);
-
-    // Live updates for this user's doc only
-    unsub = onSnapshot(userDoc(user.uid), (snap) => {
-      if (snap.exists() && snap.data().items && typeof MEDS !== "undefined") {
+    unsub = onSnapshot(docRefFor(user.uid), (snap)=>{
+      if(snap.exists() && snap.data().items && typeof MEDS !== 'undefined'){
         MEDS = snap.data().items;
-        writeLocal();              // keep per-uid cache consistent
-        if (typeof render === "function") render();
+        try{ if(typeof window._origSaveLocal === 'function'){ window._origSaveLocal(); } }catch{}
+        safeRender();
+        console.log('[LIVE] updated from cloud, items=', MEDS.length);
       }
-    }, showErr);
+    }, (err)=> showErr(err));
   });
 
-  // Wait for your original script to define functions, then wrap them
-  window.addEventListener("load", () => {
-    const t = setInterval(() => {
+  window.addEventListener('load', ()=>{
+    const t = setInterval(()=>{
       wrapPersistence();
-      if (window._origLoadLocal && window._origSaveLocal) {
+      if(window._origLoadLocal && window._origSaveLocal){
         clearInterval(t);
-        // run our cloud-first load
-        if (typeof loadLocal === "function") loadLocal();
+        if(typeof loadLocal === 'function') loadLocal(); else safeRender();
       }
     }, 50);
-    setTimeout(() => wrapPersistence(), 2000);
+    setTimeout(()=>wrapPersistence(), 2000);
   });
-
-  // Optional: expose helpers for quick checks in the console
-  window.__dbg = {
-    uid: () => (auth.currentUser && auth.currentUser.uid),
-    path: () => (auth.currentUser ? `users/${auth.currentUser.uid}/app/meds` : "(guest)"),
-    dumpLocal: () => JSON.parse(localStorage.getItem(LS_KEY) || "[]")
-  };
 </script>
 
 </body>
