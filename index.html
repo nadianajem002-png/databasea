@@ -85,6 +85,11 @@
         <button id="btn-signin" title="Sign in">Sign in</button>
         <button id="btn-signout" title="Sign out" style="display:none">Sign out</button>
       </div>
+          <div class="row" style="gap:8px">
+        <button id="btn-export" class="btn" title="Export my meds as JSON">Export JSON</button>
+        <button id="btn-import" class="btn" title="Import meds from JSON">Import JSON</button>
+        <input id="file-import" type="file" accept="application/json" style="display:none" />
+      </div>
     </header>
 
     <!--
@@ -123,7 +128,7 @@
     // ========================= Firebase (modular SDK) =========================
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
     import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
 
     // Your web app's Firebase configuration (from your message)
     const firebaseConfig = {
@@ -180,6 +185,75 @@
     });
 
     let unsub = null; // meds listener
+
+    // ========================= Import / Export =========================
+    const btnExport = document.querySelector('#btn-export');
+    const btnImport = document.querySelector('#btn-import');
+    const fileImport = document.querySelector('#file-import');
+
+    btnExport.addEventListener('click', exportMeds);
+    btnImport.addEventListener('click', () => fileImport.click());
+    fileImport.addEventListener('change', async (e) => {
+      const file = e.target.files?.[0];
+      if(!file) return;
+      try{
+        const text = await file.text();
+        const parsed = JSON.parse(text);
+        await importMeds(parsed);
+        alert('Import complete.');
+      }catch(err){
+        alert('Import failed: ' + (err?.message || err));
+      } finally {
+        fileImport.value = '';
+      }
+    });
+
+    async function exportMeds(){
+      const user = auth.currentUser;
+      if(!user) return alert('Sign in to export your medications.');
+      const medsSnap = await getDocs(collection(db, `users/${user.uid}/medications`));
+      const meds = medsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const blob = new Blob([JSON.stringify(meds, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `meds-${user.uid}-${new Date().toISOString().slice(0,10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    async function importMeds(data){
+      const user = auth.currentUser;
+      if(!user) return alert('Sign in to import medications.');
+      // Accept array or {medications:[...]} shapes
+      const items = Array.isArray(data) ? data : (Array.isArray(data?.medications) ? data.medications : null);
+      if(!items) throw new Error('JSON must be an array of meds or an object with a "medications" array.');
+
+      const batch = writeBatch(db);
+      const basePath = `users/${user.uid}/medications`;
+      for(const raw of items){
+        const m = normalizeMed(raw);
+        const ref = doc(collection(db, basePath));
+        batch.set(ref, { ...m, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+      }
+      await batch.commit();
+    }
+
+    function normalizeMed(o){
+      // Map a few common variants so older exports/imports still work
+      return {
+        name: o.name ?? o.title ?? '',
+        route: o.route ?? '',
+        class: o.class ?? o.drugClass ?? '',
+        dose: o.dose ?? o.dosage ?? '',
+        indications: o.indications ?? o.uses ?? '',
+        contraindications: o.contraindications ?? o.contra ?? '',
+        lactation: o.lactation ?? o.pregnancy ?? o.pregnancyLactation ?? '',
+        sidefx: o.sidefx ?? o.sideEffects ?? o.adverse ?? ''
+      };
+    }
 
     onAuthStateChanged(auth, (user) => {
       if(user){
