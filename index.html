@@ -3,104 +3,130 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Personal Medication Database (Per‑User)</title>
+  <title>Personal Medication Database (Nursing)</title>
   <style>
+    /* ========================= THEME & TYPOGRAPHY ========================= */
     :root{
       --bg:#0e1324; --fg:#eaf0ff; --mut:#b8c0ea; --card:#161e3b; --line:#2b376d; --accent:#8ab4ff; --bad:#ff7a7a; --good:#7affba;
-      --shadow:0 6px 18px rgba(0,0,0,.30), inset 0 1px 0 rgba(255,255,255,.02);
+      --shadow:0 6px 18px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.02);
       --stripe: rgba(255,255,255,.02);
-      --radius:16px; --space:12px;
+      --borderRadius:16px;
     }
-    *{box-sizing:border-box}
-    body{margin:0;font:14px/1.55 system-ui,Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:var(--fg)}
-    .wrap{max-width:1100px;margin:0 auto;padding:18px}
-    header{position:sticky;top:0;z-index:10;background:var(--bg);display:flex;align-items:center;gap:12px;justify-content:space-between;padding:10px 0 14px}
-    h1{font-size:20px;margin:0}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px}
-    .btn{border:1px solid var(--line);background:transparent;color:var(--fg);padding:8px 12px;border-radius:12px;cursor:pointer}
-    .mut{color:var(--mut)}
+    :root[data-theme="light"]{
+      --bg:#f7f9ff; --fg:#0a1229; --mut:#47507a; --card:#ffffff; --line:#dfe6ff; --accent:#335dff; --bad:#d63939; --good:#17b26a;
+      --shadow:0 10px 24px rgba(21,33,80,.12);
+      --stripe: rgba(10,18,41,.035);
+    }
+    @media (prefers-color-scheme: light){
+      :root:not([data-theme]){ color-scheme: light; }
+    }
 
-    /* Toolbar */
-    .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:0 0 12px}
-    .toolbar input[type="search"], .toolbar select {border:1px solid var(--line);background:transparent;color:var(--fg);padding:8px 10px;border-radius:12px}
-    .chip{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid var(--line);background:linear-gradient(180deg,var(--stripe),transparent);font-size:12px}
-    .chip input{accent-color:currentColor}
+    html,body{height:100%}
+    body{margin:0; font:15.5px/1.6 system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; background:var(--bg); color:var(--fg)}
+    h1,h2,h3{font-family: ui-serif, Georgia, Cambria, "Times New Roman", serif}
 
-    /* Grid / Grouping */
-    .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
-    @media (max-width:900px){.grid{grid-template-columns:repeat(2,1fr)}}
-    @media (max-width:620px){.grid{grid-template-columns:1fr}}
+    .wrap{max-width:1200px; margin:0 auto; padding:22px}
+    h1{margin:0 0 10px; font-size:24px}
+    p.hint{color:var(--mut); margin:0 0 16px}
 
-    .group{margin:14px 0}
-    .group-head{display:flex;align-items:center;justify-content:space-between;margin:0 0 8px}
-    .group-title{font-weight:600;letter-spacing:.2px}
+    .toolbar{display:flex; gap:8px; flex-wrap:wrap; margin:0 0 12px}
+    .toolbar input,.toolbar select{background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:999px; padding:10px 12px}
+    .btn{cursor:pointer; background:var(--accent); color:#fff; border:none; border-radius:999px; padding:10px 14px; font-weight:650; box-shadow:var(--shadow)}
+    .btn-ghost{cursor:pointer; background:transparent; color:var(--fg); border:1px solid var(--line); border-radius:999px; padding:9px 13px}
 
-    .med-card{position:relative}
-    .med-title{font-weight:700;margin:0 0 6px;font-size:16px}
-    .rowline{margin:4px 0}
-    .route-tag{display:inline-block;border-radius:8px;padding:2px 8px;border:1px solid var(--line);font-size:12px}
-    .toolbar-compact{position:absolute;top:10px;right:10px;display:flex;gap:6px}
-    .iconbtn{border:1px solid var(--line);background:transparent;color:var(--fg);padding:6px 8px;border-radius:10px;cursor:pointer}
+    .card{background:var(--card); border:1px solid var(--line); border-radius:var(--borderRadius); padding:12px; box-shadow:var(--shadow)}
 
-    .empty{opacity:.85;text-align:center;padding:18px;border:1px dashed var(--line);border-radius:var(--radius)}
+    /* ========================= LIST (table‑like) ========================= */
+    .table{width:100%; border-collapse:separate; border-spacing:0 8px}
+    .tr{display:grid; grid-template-columns: 2fr 1.2fr 0.8fr 1fr 80px; align-items:center; gap:12px; padding:10px; background:var(--card); border:1px solid var(--line); border-radius:12px}
+    .th{font-size:12px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em}
+    .tr.head{background:transparent; border:none; padding:0}
+    .name{font-weight:700}
+    .route-pill{display:inline-block; padding:4px 10px; border-radius:999px; border:1px solid var(--line); font-size:12px}
+    .actions{display:flex; gap:6px; justify-content:flex-end}
+    .iconbtn{cursor:pointer; background:transparent; border:1px solid var(--line); color:var(--fg); padding:6px 8px; border-radius:10px}
+    .tr:hover{outline:1px solid color-mix(in oklab, var(--line) 70%, var(--accent));}
+
+    /* ========================= FORM ========================= */
+    #med-form{display:grid; grid-template-columns:repeat(2,1fr); gap:10px}
+    #med-form input, #med-form textarea{background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:12px; padding:10px}
+    #med-form textarea{grid-column:1/-1}
+
+    /* ========================= MODAL ========================= */
+    .modal-backdrop{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; padding:20px; z-index:50}
+    .modal{max-width:820px; width:100%; background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow)}
+    .modal header{display:flex; justify-content:space-between; align-items:center; padding:14px}
+    .modal .content{padding:14px; display:grid; gap:8px}
   </style>
 </head>
 <body>
   <div class="wrap">
-    <header>
-      <h1>Medication Database</h1>
-      <div class="card" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <span id="auth-status" class="mut">Signed out</span>
-        <input id="auth-email" type="email" placeholder="email" autocomplete="username" />
-        <input id="auth-pass" type="password" placeholder="password" autocomplete="current-password" />
-        <button id="btn-signup" class="btn">Sign up</button>
-        <button id="btn-signin" class="btn">Sign in</button>
-        <button id="btn-signout" class="btn" style="display:none">Sign out</button>
-        <button id="btn-export" class="btn">Export JSON</button>
-        <button id="btn-import" class="btn">Import JSON</button>
-        <input id="file-import" type="file" accept="application/json" style="display:none" />
-      </div>
-    </header>
+    <h1>Personal Medication Database (Nursing)</h1>
+    <p class="hint">Per‑user accounts with private meds. Search, route colors, click a row to open a detail popup.</p>
 
-    <section class="card">
-      <h2 style="margin:0 0 8px;font-size:16px">Add / Edit medication</h2>
-      <form id="med-form" style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px">
+    <div class="toolbar card">
+      <span id="auth-status" class="hint">Signed out</span>
+      <input id="auth-email" type="email" placeholder="email" autocomplete="username" />
+      <input id="auth-pass" type="password" placeholder="password" autocomplete="current-password" />
+      <button id="btn-signup" class="btn-ghost">Sign up</button>
+      <button id="btn-signin" class="btn">Sign in</button>
+      <button id="btn-signout" class="btn-ghost" style="display:none">Sign out</button>
+      <span style="flex:1"></span>
+      <input id="search" type="search" placeholder="Search name, class, indications, side effects…" style="min-width:280px">
+      <select id="sort">
+        <option value="new">Newest</option>
+        <option value="az">A → Z</option>
+        <option value="class">Class</option>
+      </select>
+      <button id="btn-export" class="btn-ghost">Export JSON</button>
+      <button id="btn-import" class="btn-ghost">Import JSON</button>
+      <input id="file-import" type="file" accept="application/json" style="display:none" />
+    </div>
+
+    <section class="card" style="margin-bottom:12px">
+      <h3 style="margin:4px 0 10px">Add / Edit medication</h3>
+      <form id="med-form">
         <input id="med-name" placeholder="Name" required />
         <input id="med-route" placeholder="Route (PO, IV, IM, SC, patch, PR, topical, inhalation)" />
         <input id="med-class" placeholder="Class" />
         <input id="med-dose" placeholder="Dose (e.g., 500 mg BID)" />
-        <textarea id="med-indications" placeholder="Indications" style="grid-column:1/-1"></textarea>
-        <textarea id="med-contra" placeholder="Contraindications" style="grid-column:1/-1"></textarea>
-        <textarea id="med-lactation" placeholder="Pregnancy/Lactation notes" style="grid-column:1/-1"></textarea>
-        <textarea id="med-sidefx" placeholder="Side Effects" style="grid-column:1/-1"></textarea>
-        <textarea id="med-interactions" placeholder="Drug Interactions" style="grid-column:1/-1"></textarea>
-        <textarea id="med-monitoring" placeholder="Monitoring Parameters" style="grid-column:1/-1"></textarea>
-        <textarea id="med-notes" placeholder="Additional Notes" style="grid-column:1/-1"></textarea>
-        <div class="actions" style="grid-column:1/-1;display:flex;gap:10px;justify-content:flex-end">
+        <textarea id="med-indications" placeholder="Indications"></textarea>
+        <textarea id="med-contraindications" placeholder="Contraindications"></textarea>
+        <textarea id="med-lactation" placeholder="Pregnancy/Lactation notes"></textarea>
+        <textarea id="med-sidefx" placeholder="Side Effects"></textarea>
+        <textarea id="med-interactions" placeholder="Drug Interactions"></textarea>
+        <textarea id="med-monitoring" placeholder="Monitoring Parameters"></textarea>
+        <textarea id="med-notes" placeholder="Additional Notes"></textarea>
+        <div style="grid-column:1/-1; display:flex; gap:8px; justify-content:flex-end">
           <button type="submit" class="btn">Save</button>
-          <button type="button" id="btn-reset" class="btn">Reset</button>
+          <button type="button" id="btn-reset" class="btn-ghost">Reset</button>
+          <input type="hidden" id="med-id" />
         </div>
-        <input type="hidden" id="med-id" />
       </form>
     </section>
 
-    <section style="margin-top:12px">
-      <!-- LIST TOOLBAR -->
-      <div class="card toolbar">
-        <input id="search" type="search" placeholder="Search name, class, indications, side effects…" style="min-width:260px">
-        <label class="chip"><input type="checkbox" class="route-filter" value="ALL" checked> All routes</label>
-        <span id="route-filters" class="mut" style="display:flex;gap:8px;flex-wrap:wrap"></span>
-        <select id="sort">
-          <option value="new">Newest</option>
-          <option value="az">A → Z</option>
-          <option value="class">Class</option>
-        </select>
-        <label class="chip"><input type="checkbox" id="group-toggle"> Group by route</label>
-      </div>
+    <!-- LIST HEADER -->
+    <div class="tr head">
+      <div class="th">Name</div>
+      <div class="th">Class</div>
+      <div class="th">Route</div>
+      <div class="th">Dose</div>
+      <div class="th" style="text-align:right">Actions</div>
+    </div>
+    <div id="list"></div>
 
-      <div id="list-container"></div>
-      <div id="empty-state" class="empty" style="display:none">No medications yet. Add your first above.</div>
-    </section>
+    <div id="empty" class="card" style="display:none; text-align:center">No medications yet — add your first above.</div>
+  </div>
+
+  <!-- MODAL -->
+  <div id="modal-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal">
+      <header>
+        <h3 id="modal-title" style="margin:0"></h3>
+        <button id="modal-close" class="iconbtn" aria-label="Close">✕</button>
+      </header>
+      <div class="content" id="modal-content"></div>
+    </div>
   </div>
 
   <script type="module">
@@ -124,187 +150,164 @@
 
     // DOM helpers
     const $ = sel => document.querySelector(sel);
-    const listContainer = $("#list-container");
-    const emptyEl = $("#empty-state");
+    const listEl = $("#list");
+    const emptyEl = $("#empty");
 
-    const inputIds = ["#med-name","#med-route","#med-class","#med-dose","#med-indications","#med-contra","#med-lactation","#med-sidefx","#med-interactions","#med-monitoring","#med-notes"];
+    const inputIds = [
+      "#med-name","#med-route","#med-class","#med-dose",
+      "#med-indications","#med-contraindications","#med-lactation","#med-sidefx",
+      "#med-interactions","#med-monitoring","#med-notes"
+    ];
     const inputs = Object.fromEntries(inputIds.map(id=>[id,$(id)]));
     const idEl = $("#med-id");
 
-    // Auth
-    const btnUp = $("#btn-signup"), btnIn = $("#btn-signin"), btnOut = $("#btn-signout"), statusEl=$("#auth-status"), emailEl=$("#auth-email"), passEl=$("#auth-pass");
+    const btnUp=$("#btn-signup"), btnIn=$("#btn-signin"), btnOut=$("#btn-signout"), statusEl=$("#auth-status"), emailEl=$("#auth-email"), passEl=$("#auth-pass");
     btnUp.onclick=()=>createUserWithEmailAndPassword(auth,emailEl.value,passEl.value).catch(e=>alert(e.message));
     btnIn.onclick=()=>signInWithEmailAndPassword(auth,emailEl.value,passEl.value).catch(e=>alert(e.message));
     btnOut.onclick=()=>signOut(auth);
 
-    // Filters / Search / Sort
-    const searchEl = $("#search");
-    const sortEl = $("#sort");
-    const groupToggle = $("#group-toggle");
-    const routeFiltersWrap = $("#route-filters");
+    const searchEl=$("#search"), sortEl=$("#sort");
 
-    const ROUTE_COLORS = {
-      PO:'#8ab4ff', IV:'#7affba', IM:'#ffd166', SC:'#f78da7', PATCH:'#b4a0ff', PR:'#a0e7e5', TOPICAL:'#ffadad', INHALATION:'#9bf6ff', SL:'#caffbf', SUBLINGUAL:'#caffbf'
-    };
+    const ROUTE_COLORS = { PO:'#8ab4ff', IV:'#7affba', IM:'#ffd166', SC:'#f78da7', PATCH:'#b4a0ff', PR:'#a0e7e5', TOPICAL:'#ffadad', INHALATION:'#9bf6ff', SL:'#caffbf', SUBLINGUAL:'#caffbf' };
+    const rKey = v => (v||'').toString().trim().toUpperCase().replace('INH','INHALATION');
 
-    function routeKey(str){
-      const v=(str||'').toString().trim().toUpperCase();
-      if(v==='SL') return 'SUBLEGEND';
-      // normalize common synonyms
-      if(v==='INH') return 'INHALATION';
-      return v;
-    }
+    let unsub=null; let allMeds=[];
 
-    // Build route filter chips
-    function buildRouteChips(routes){
-      routeFiltersWrap.innerHTML='';
-      for(const r of routes){
-        const color = ROUTE_COLORS[r] || '#b8c0ea';
-        const label = document.createElement('label');
-        label.className='chip';
-        label.style.borderColor = color;
-        label.style.color = color;
-        label.innerHTML = `<input type="checkbox" class="route-filter" value="${r}" checked> ${r}`;
-        routeFiltersWrap.appendChild(label);
-      }
-    }
-
-    // State
-    let unsub=null; let allMeds=[]; let activeRoutes=new Set();
-
-    onAuthStateChanged(auth,user=>{
+    onAuthStateChanged(auth, user => {
       if(user){
-        statusEl.textContent=`Signed in as ${user.email}`;
-        btnOut.style.display=''; btnUp.style.display=btnIn.style.display='none'; emailEl.style.display=passEl.style.display='none';
-        const medsRef=collection(db,`users/${user.uid}/medications`);
-        const q=query(medsRef,orderBy('createdAt','desc'));
-        if(unsub)unsub();
-        unsub=onSnapshot(q,snap=>{
-          allMeds = snap.docs.map(d=>({id:d.id,...d.data()}));
-          // Build route filters from data
-          const routes = Array.from(new Set(allMeds.map(m=>routeKey(m.route)).filter(Boolean))).sort();
-          buildRouteChips(routes);
-          activeRoutes = new Set(routes);
+        statusEl.textContent = `Signed in as ${user.email}`;
+        btnOut.style.display=''; btnIn.style.display=btnUp.style.display='none'; emailEl.style.display=passEl.style.display='none';
+        const medsRef = collection(db, `users/${user.uid}/medications`);
+        const q = query(medsRef, orderBy('createdAt','desc'));
+        if(unsub) unsub();
+        unsub = onSnapshot(q, snap => {
+          allMeds = snap.docs.map(d=>({id:d.id, ...d.data()}));
           render();
-          // attach listeners (after chips exist)
-          routeFiltersWrap.querySelectorAll('.route-filter').forEach(cb=>{
-            cb.addEventListener('change',()=>{
-              if(cb.value==='ALL'){
-                const check = cb.checked;
-                routeFiltersWrap.querySelectorAll('.route-filter').forEach(x=>x.checked=check);
-                activeRoutes = new Set(check?routes:[]);
-              } else {
-                if(cb.checked) activeRoutes.add(cb.value); else activeRoutes.delete(cb.value);
-              }
-              render();
-            });
-          });
         });
       } else {
-        statusEl.textContent='Signed out';
-        btnOut.style.display='none'; btnUp.style.display=btnIn.style.display=''; emailEl.style.display=passEl.style.display='';
-        if(unsub){unsub(); unsub=null;} allMeds=[]; routeFiltersWrap.innerHTML=''; render();
+        statusEl.textContent = 'Signed out';
+        btnOut.style.display='none'; btnIn.style.display=btnUp.style.display=''; emailEl.style.display=passEl.style.display='';
+        if(unsub){unsub(); unsub=null;} allMeds=[]; render();
       }
     });
 
-    // Form submit
-    $("#med-form").addEventListener('submit',async e=>{
-      e.preventDefault(); const user=auth.currentUser; if(!user)return alert('Sign in first.');
+    // Create / Update
+    document.querySelector('#med-form').addEventListener('submit', async e => {
+      e.preventDefault(); const user=auth.currentUser; if(!user) return alert('Sign in first.');
       const payload={}; inputIds.forEach(id=>payload[id.slice(5)]=inputs[id].value.trim()); payload.createdAt=serverTimestamp(); payload.updatedAt=serverTimestamp();
-      try{ if(idEl.value){await updateDoc(doc(db,`users/${user.uid}/medications/${idEl.value}`),payload);} else {await addDoc(collection(db,`users/${user.uid}/medications`),payload);} clearForm(); }catch(err){alert(err.message)}
+      try{ if(idEl.value){ await updateDoc(doc(db,`users/${user.uid}/medications/${idEl.value}`), payload); } else { await addDoc(collection(db,`users/${user.uid}/medications`), payload); } clearForm(); }
+      catch(err){ alert(err.message); }
     });
-    $("#btn-reset").onclick=clearForm;
+    document.querySelector('#btn-reset').onclick = clearForm;
 
-    function clearForm(){Object.values(inputs).forEach(i=>i.value="");idEl.value="";}
+    async function handleDelete(id){
+      const user=auth.currentUser; if(!user) return; if(!confirm('Delete this medication?')) return;
+      await deleteDoc(doc(db,`users/${user.uid}/medications/${id}`));
+    }
+    function handleEdit(m){ idEl.value=m.id; for(const id of inputIds){ inputs[id].value = m[id.slice(5)] || ''; } window.scrollTo({top:0,behavior:'smooth'}); }
 
-    async function handleDelete(id){const user=auth.currentUser;if(!user)return;if(!confirm('Delete?'))return;await deleteDoc(doc(db,`users/${user.uid}/medications/${id}`));}
-    function handleEdit(m){idEl.value=m.id; for(const id of inputIds){inputs[id].value=m[id.slice(5)]||'';} window.scrollTo({top:0,behavior:'smooth'});}
-
-    // Search / sort helpers
-    function debounce(fn,ms){let t;return(...a)=>{clearTimeout(t);t=setTimeout(()=>fn(...a),ms)}}
-    searchEl.addEventListener('input',debounce(()=>render(),150));
-    sortEl.addEventListener('change',()=>render());
-    groupToggle.addEventListener('change',()=>render());
+    // Search / Sort
+    function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); } }
+    searchEl.addEventListener('input', debounce(render, 120));
+    sortEl.addEventListener('change', render);
 
     function filtered(){
       const q=(searchEl.value||'').toLowerCase();
-      let list = allMeds.slice();
-      if(q){
-        list = list.filter(m=>{
-          const hay = `${m.name||''} ${m.class||''} ${m.indications||''} ${m.sidefx||''}`.toLowerCase();
-          return hay.includes(q);
-        });
-      }
-      if(activeRoutes && activeRoutes.size){
-        list = list.filter(m=>!routeFiltersWrap.children.length || activeRoutes.has(routeKey(m.route)));
-      }
-      const mode = sortEl.value;
-      if(mode==='az') list.sort((a,b)=> (a.name||'').localeCompare(b.name||''));
-      else if(mode==='class') list.sort((a,b)=> (a.class||'').localeCompare(b.class||''));
-      // newest is default coming from Firestore order
-      return list;
+      let lst = allMeds.slice();
+      if(q){ lst = lst.filter(m=>(`${m.name||''} ${m.class||''} ${m.indications||''} ${m.sidefx||''}`).toLowerCase().includes(q)); }
+      if(sortEl.value==='az') lst.sort((a,b)=> (a.name||'').localeCompare(b.name||''));
+      if(sortEl.value==='class') lst.sort((a,b)=> (a.class||'').localeCompare(b.class||''));
+      return lst; // default newest already via query
     }
 
     function render(){
       const meds = filtered();
       emptyEl.style.display = meds.length ? 'none' : '';
-      listContainer.innerHTML='';
-      if(groupToggle.checked){
-        // group by route
-        const groups = {};
-        for(const m of meds){
-          const r = routeKey(m.route)||'UNKNOWN';
-          (groups[r] ||= []).push(m);
-        }
-        for(const r of Object.keys(groups).sort()){
-          const color = ROUTE_COLORS[r] || '#b8c0ea';
-          const g = document.createElement('div'); g.className='group';
-          g.innerHTML = `<div class="group-head"><div class="group-title" style="color:${color}">● ${r}</div><span class="mut">${groups[r].length} med(s)</span></div>`;
-          const grid = document.createElement('div'); grid.className = 'grid';
-          for(const m of groups[r]) grid.appendChild(renderCard(m));
-          g.appendChild(grid);
-          listContainer.appendChild(g);
-        }
-      } else {
-        const grid = document.createElement('div'); grid.className = 'grid';
-        for(const m of meds) grid.appendChild(renderCard(m));
-        listContainer.appendChild(grid);
+      listEl.innerHTML = '';
+      for(const m of meds){
+        const color = ROUTE_COLORS[rKey(m.route)] || '#b8c0ea';
+        const row = document.createElement('div'); row.className='tr'; row.tabIndex=0; row.setAttribute('role','button');
+        row.innerHTML = `
+          <div class="name">${esc(m.name||'(unnamed)')}</div>
+          <div class="mut">${esc(m.class||'')}</div>
+          <div><span class="route-pill" style="border-color:${color}; color:${color}">${esc(m.route||'')}</span></div>
+          <div>${esc(m.dose||'')}</div>
+          <div class="actions">
+            <button class="iconbtn" data-edit title="Edit">✎</button>
+            <button class="iconbtn" data-del title="Delete">🗑</button>
+          </div>`;
+        row.addEventListener('click', (ev)=>{ if(!(ev.target.closest('[data-edit]')||ev.target.closest('[data-del]'))) openModal(m); });
+        row.querySelector('[data-edit]').onclick = (e)=>{ e.stopPropagation(); handleEdit(m); };
+        row.querySelector('[data-del]').onclick = (e)=>{ e.stopPropagation(); handleDelete(m.id); };
+        listEl.appendChild(row);
       }
     }
 
-    function renderCard(m){
-      const rKey = routeKey(m.route);
-      const color = ROUTE_COLORS[rKey] || '#b8c0ea';
-      const el = document.createElement('div'); el.className='card med-card';
-      el.innerHTML = `
-        <div class="toolbar-compact">
-          <button class="iconbtn" data-edit title="Edit">✎</button>
-          <button class="iconbtn" data-del title="Delete">🗑</button>
-        </div>
-        <div class="med-title">${escapeHTML(m.name || '(unnamed)')}</div>
-        <div class="rowline mut">${escapeHTML(m.class || '')}</div>
-        <div class="rowline"><span class="route-tag" style="border-color:${color};color:${color}">${escapeHTML(m.route || '')}</span> ${escapeHTML(m.dose || '')}</div>
-        <div class="rowline"><strong>Indications:</strong> ${escapeHTML(m.indications || '')}</div>
-        <div class="rowline"><strong>Contraindications:</strong> ${escapeHTML(m.contraindications || m.contra || '')}</div>
-        <div class="rowline"><strong>Lactation:</strong> ${escapeHTML(m.lactation || '')}</div>
-        <div class="rowline"><strong>Side effects:</strong> ${escapeHTML(m.sidefx || '')}</div>
-        ${m.interactions?`<div class="rowline"><strong>Interactions:</strong> ${escapeHTML(m.interactions)}</div>`:''}
-        ${m.monitoring?`<div class="rowline"><strong>Monitoring:</strong> ${escapeHTML(m.monitoring)}</div>`:''}
-        ${m.notes?`<div class="rowline"><strong>Notes:</strong> ${escapeHTML(m.notes)}</div>`:''}
+    function clearForm(){ Object.values(inputs).forEach(i=>i.value=''); document.querySelector('#med-id').value=''; }
+
+    function esc(s){ return (s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+    // ===== Modal =====
+    const modalBackdrop = document.getElementById('modal-backdrop');
+    const modalTitle = document.getElementById('modal-title');
+    const modalContent = document.getElementById('modal-content');
+    const modalClose = document.getElementById('modal-close');
+
+    function openModal(m){
+      modalTitle.textContent = m.name || '(unnamed)';
+      modalContent.innerHTML = `
+        <div><strong>Class:</strong> ${esc(m.class||'')}</div>
+        <div><strong>Route:</strong> ${esc(m.route||'')} &nbsp; <strong>Dose:</strong> ${esc(m.dose||'')}</div>
+        ${m.indications?`<div><strong>Indications:</strong> ${esc(m.indications)}</div>`:''}
+        ${m.contraindications?`<div><strong>Contraindications:</strong> ${esc(m.contraindications)}</div>`:''}
+        ${m.lactation?`<div><strong>Pregnancy/Lactation:</strong> ${esc(m.lactation)}</div>`:''}
+        ${m.sidefx?`<div><strong>Side Effects:</strong> ${esc(m.sidefx)}</div>`:''}
+        ${m.interactions?`<div><strong>Interactions:</strong> ${esc(m.interactions)}</div>`:''}
+        ${m.monitoring?`<div><strong>Monitoring:</strong> ${esc(m.monitoring)}</div>`:''}
+        ${m.notes?`<div><strong>Notes:</strong> ${esc(m.notes)}</div>`:''}
       `;
-      el.querySelector('[data-edit]').onclick=()=>handleEdit(m);
-      el.querySelector('[data-del]').onclick=()=>handleDelete(m.id);
-      return el;
+      modalBackdrop.style.display = 'flex';
+    }
+    function closeModal(){ modalBackdrop.style.display='none'; }
+    modalClose.onclick = closeModal;
+    modalBackdrop.addEventListener('click', (e)=>{ if(e.target===modalBackdrop) closeModal(); });
+    window.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeModal(); });
+
+    // ===== Import / Export =====
+    const btnExport=$("#btn-export"), btnImport=$("#btn-import"), fileImport=$("#file-import");
+    btnExport.onclick = exportMeds; btnImport.onclick = ()=>fileImport.click();
+    fileImport.onchange = async (e)=>{
+      const f=e.target.files?.[0]; if(!f) return; try{ const text=await f.text(); const parsed=JSON.parse(text); await importMeds(parsed); alert('Import complete'); } catch(err){ alert('Import failed: '+(err?.message||err)); } fileImport.value=''; };
+
+    async function exportMeds(){
+      const user=auth.currentUser; if(!user) return alert('Sign in first.');
+      const medsSnap=await getDocs(collection(db,`users/${user.uid}/medications`));
+      const meds=medsSnap.docs.map(d=>({id:d.id,...d.data()}));
+      const blob=new Blob([JSON.stringify(meds,null,2)],{type:'application/json'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a'); a.href=url; a.download=`meds-${user.uid}-${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
     }
 
-    function escapeHTML(str){return(str||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;','\'':'&#039;'}[c]));}
+    async function importMeds(data){
+      const user=auth.currentUser; if(!user) return alert('Sign in first.');
+      const items = Array.isArray(data) ? data : (Array.isArray(data?.medications) ? data.medications : null);
+      if(!items) throw new Error('Invalid JSON: expected an array or { medications: [] }');
+      const batch = writeBatch(db);
+      for(const raw of items){
+        const m = normalize(raw);
+        const ref = doc(collection(db,`users/${user.uid}/medications`));
+        batch.set(ref, { ...m, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
+      }
+      await batch.commit();
+    }
 
-    // Import / Export
-    const btnExport=$("#btn-export"),btnImport=$("#btn-import"),fileImport=$("#file-import");
-    btnExport.onclick=exportMeds; btnImport.onclick=()=>fileImport.click(); fileImport.onchange=async e=>{const f=e.target.files?.[0];if(!f)return;try{const text=await f.text();const parsed=JSON.parse(text);await importMeds(parsed);alert('Import complete');}catch(err){alert('Import failed: '+(err?.message||err));}fileImport.value='';};
-    async function exportMeds(){const user=auth.currentUser;if(!user)return alert('Sign in first.');const medsSnap=await getDocs(collection(db,`users/${user.uid}/medications`));const meds=medsSnap.docs.map(d=>({id:d.id,...d.data()}));const blob=new Blob([JSON.stringify(meds,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`meds-${user.uid}-${new Date().toISOString().slice(0,10)}.json`;document.body.appendChild(a);a.click();a.remove();URL.revokeObjectURL(url);}
-    async function importMeds(data){const user=auth.currentUser;if(!user)return alert('Sign in first.');const items=Array.isArray(data)?data:(Array.isArray(data?.medications)?data.medications:null);if(!items)throw new Error('Invalid JSON');const batch=writeBatch(db);for(const raw of items){const m=normalizeMed(raw);const ref=doc(collection(db,`users/${user.uid}/medications`));batch.set(ref,{...m,createdAt:serverTimestamp(),updatedAt:serverTimestamp()});}await batch.commit();}
-    function normalizeMed(o){return {name:o.name||o.title||'',route:o.route||'',class:o.class||o.drugClass||'',dose:o.dose||o.dosage||'',indications:o.indications||o.uses||'',contraindications:o.contraindications||o.contra||'',lactation:o.lactation||o.pregnancy||o.pregnancyLactation||'',sidefx:o.sidefx||o.sideEffects||o.adverse||'',interactions:o.interactions||'',monitoring:o.monitoring||'',notes:o.notes||''}};
+    function normalize(o){
+      return {
+        name:o.name||o.title||'', route:o.route||'', class:o.class||o.drugClass||'', dose:o.dose||o.dosage||'',
+        indications:o.indications||o.uses||'', contraindications:o.contraindications||o.contra||'', lactation:o.lactation||o.pregnancy||o.pregnancyLactation||'',
+        sidefx:o.sidefx||o.sideEffects||o.adverse||'', interactions:o.interactions||'', monitoring:o.monitoring||'', notes:o.notes||''
+      };
+    }
   </script>
 </body>
 </html>
