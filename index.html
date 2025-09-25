@@ -38,14 +38,13 @@
 
     /* ========================= LIST (table‑like) ========================= */
     .table{width:100%; border-collapse:separate; border-spacing:0 8px}
-    .tr{display:grid; grid-template-columns: 2fr 1.2fr 0.8fr 1fr 80px; align-items:center; gap:12px; padding:10px; background:var(--card); border:1px solid var(--line); border-radius:12px}
+    .tr{display:grid; grid-template-columns: 2fr 1.2fr 0.8fr 1fr 80px; align-items:center; gap:12px; padding:10px; background:var(--card); border:1px solid var(--line); border-radius:12px; position:relative}
     .th{font-size:12px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em}
     .tr.head{background:transparent; border:none; padding:0}
     .name{font-weight:700}
     .route-pill{display:inline-block; padding:4px 10px; border-radius:999px; border:1px solid var(--line); font-size:12px}
     /* colored dot + left stripe by drug class */
     .class-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:middle}
-    .tr{position:relative}
     .tr::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;border-top-left-radius:12px;border-bottom-left-radius:12px;background:transparent}
     .actions{display:flex; gap:6px; justify-content:flex-end}
     .iconbtn{cursor:pointer; background:transparent; border:1px solid var(--line); color:var(--fg); padding:6px 8px; border-radius:10px}
@@ -78,10 +77,10 @@
       <span style="flex:1"></span>
       <input id="search" type="search" placeholder="Search name, class, indications, side effects…" style="min-width:280px">
       <select id="sort">
-      <option value="new">Newest</option>
-      <option value="az">A → Z</option>
-      <option value="za">Z → A</option>
-      <option value="class">Class</option>
+        <option value="new">Newest</option>
+        <option value="az">A → Z</option>
+        <option value="za">Z → A</option>
+        <option value="class">Class</option>
       </select>
       <button id="btn-export" class="btn-ghost">Export JSON</button>
       <button id="btn-import" class="btn-ghost">Import JSON</button>
@@ -155,57 +154,61 @@
 
     // DOM helpers
     const $ = sel => document.querySelector(sel);
-    const listEl = $("#list");
-    const emptyEl = $("#empty");
+    const listEl = document.getElementById('list');
+    const emptyEl = document.getElementById('empty');
 
     const inputIds = [
-      "#med-name","#med-route","#med-class","#med-dose",
-      "#med-indications","#med-contraindications","#med-lactation","#med-sidefx",
-      "#med-interactions","#med-monitoring","#med-notes"
+      '#med-name','#med-route','#med-class','#med-dose',
+      '#med-indications','#med-contraindications','#med-lactation','#med-sidefx',
+      '#med-interactions','#med-monitoring','#med-notes'
     ];
-    const inputs = Object.fromEntries(inputIds.map(id=>[id,$(id)]));
-    const idEl = $("#med-id");
+    const inputs = Object.fromEntries(inputIds.map(id=>[id, document.querySelector(id)]));
+    const idEl = document.getElementById('med-id');
 
-    const btnUp=$("#btn-signup"), btnIn=$("#btn-signin"), btnOut=$("#btn-signout"), statusEl=$("#auth-status"), emailEl=$("#auth-email"), passEl=$("#auth-pass");
+    const btnUp=document.getElementById('btn-signup'), btnIn=document.getElementById('btn-signin'), btnOut=document.getElementById('btn-signout'), statusEl=document.getElementById('auth-status'), emailEl=document.getElementById('auth-email'), passEl=document.getElementById('auth-pass');
     btnUp.onclick=()=>createUserWithEmailAndPassword(auth,emailEl.value,passEl.value).catch(e=>alert(e.message));
     btnIn.onclick=()=>signInWithEmailAndPassword(auth,emailEl.value,passEl.value).catch(e=>alert(e.message));
     btnOut.onclick=()=>signOut(auth);
 
-    const searchEl=$("#search"), sortEl=$("#sort");
+    const searchEl=document.getElementById('search'), sortEl=document.getElementById('sort');
 
-    const ROUTE_COLORS = {const ROUTE_COLORS = { PO:'#8ab4ff', IV:'#7affba', IM:'#ffd166', SC:'#f78da7', PATCH:'#b4a0ff', PR:'#a0e7e5', TOPICAL:'#ffadad', INHALATION:'#9bf6ff', SL:'#caffbf', SUBLINGUAL:'#caffbf' };
+    // Route colors
+    const ROUTE_COLORS = {
+      PO:'#8ab4ff', IV:'#7affba', IM:'#ffd166', SC:'#f78da7', PATCH:'#b4a0ff',
+      PR:'#a0e7e5', TOPICAL:'#ffadad', INHALATION:'#9bf6ff', SL:'#caffbf', SUBLINGUAL:'#caffbf'
+    };
 
-// Class colors (extend as you like)
-const CLASS_COLORS = {
-  'opioid analgesic':'#fca5a5',
-  'antihistamine':'#93c5fd',
-  'benzodiazepine':'#c4b5fd',
-  'antipsychotic':'#f9a8d4',
-  'atypical antipsychotic':'#f472b6',
-  'sleep aid':'#fde68a',
-  'osmotic laxative':'#86efac',
-  'stimulant laxative':'#34d399',
-  'hyperosmotic laxative':'#6ee7b7',
-  'anticholinergic':'#fcd34d',
-  'anticholinergic bronchodilator':'#fbbf24',
-  'ics + laba':'#a5b4fc',
-  'potassium-sparing diuretic':'#fca5a5',
-  'loop diuretic':'#f87171',
-  'ace inhibitor':'#60a5fa',
-  'statin':'#38bdf8',
-  'ppi':'#a7f3d0'
-};
-function classColor(c){
-  if(!c) return '#b8c0ea';
-  const key = c.toString().toLowerCase().trim();
-  if (CLASS_COLORS[key]) return CLASS_COLORS[key];
-  const first = key.split(/[ /-]/)[0];
-  if (CLASS_COLORS[first]) return CLASS_COLORS[first];
-  // fallback: deterministic pastel from string
-  let h=0; for(let i=0;i<key.length;i++){ h=(h*31 + key.charCodeAt(i))>>>0; }
-  const hue=h%360; return `hsl(${hue} 70% 70%)`;
-}
-};
+    // Class colors (extend as you like)
+    const CLASS_COLORS = {
+      'opioid analgesic':'#fca5a5',
+      'antihistamine':'#93c5fd',
+      'benzodiazepine':'#c4b5fd',
+      'antipsychotic':'#f9a8d4',
+      'atypical antipsychotic':'#f472b6',
+      'sleep aid':'#fde68a',
+      'osmotic laxative':'#86efac',
+      'stimulant laxative':'#34d399',
+      'hyperosmotic laxative':'#6ee7b7',
+      'anticholinergic':'#fcd34d',
+      'anticholinergic bronchodilator':'#fbbf24',
+      'ics + laba':'#a5b4fc',
+      'potassium-sparing diuretic':'#fca5a5',
+      'loop diuretic':'#f87171',
+      'ace inhibitor':'#60a5fa',
+      'statin':'#38bdf8',
+      'ppi':'#a7f3d0'
+    };
+    function classColor(c){
+      if(!c) return '#b8c0ea';
+      const key = c.toString().toLowerCase().trim();
+      if (CLASS_COLORS[key]) return CLASS_COLORS[key];
+      const first = key.split(/[ /-]/)[0];
+      if (CLASS_COLORS[first]) return CLASS_COLORS[first];
+      // fallback: deterministic pastel from string
+      let h=0; for(let i=0;i<key.length;i++){ h=(h*31 + key.charCodeAt(i))>>>0; }
+      const hue=h%360; return `hsl(${hue} 70% 70%)`;
+    }
+
     const rKey = v => (v||'').toString().trim().toUpperCase().replace('INH','INHALATION');
 
     let unsub=null; let allMeds=[];
@@ -251,22 +254,30 @@ function classColor(c){
     function filtered(){
       const q=(searchEl.value||'').toLowerCase();
       let lst = allMeds.slice();
-     if (sortEl.value==='az')
-      lst.sort((a,b)=> (a.name||'').localeCompare((b.name||''), undefined, {sensitivity:'base'}));
-    if (sortEl.value==='za')
-      lst.sort((a,b)=> (b.name||'').localeCompare((a.name||''), undefined, {sensitivity:'base'}));
-    if (sortEl.value==='class')
-      lst.sort((a,b)=> (a.class||'').localeCompare((b.class||''), undefined, {sensitivity:'base'}));
+      if(q){
+        lst = lst.filter(m=> (`${m.name||''} ${m.class||''} ${m.indications||''} ${m.sidefx||''}`).toLowerCase().includes(q));
+      }
+      if (sortEl.value==='az')
+        lst.sort((a,b)=> (a.name||'').localeCompare((b.name||''), undefined, {sensitivity:'base'}));
+      if (sortEl.value==='za')
+        lst.sort((a,b)=> (b.name||'').localeCompare((a.name||''), undefined, {sensitivity:'base'}));
+      if (sortEl.value==='class')
+        lst.sort((a,b)=> (a.class||'').localeCompare((b.class||''), undefined, {sensitivity:'base'}));
+      return lst; // 'new' remains Firestore order
+    }
+
     function render(){
       const meds = filtered();
       emptyEl.style.display = meds.length ? 'none' : '';
       listEl.innerHTML = '';
       for(const m of meds){
         const color = ROUTE_COLORS[rKey(m.route)] || '#b8c0ea';
+        const cColor = classColor(m.class);
         const row = document.createElement('div'); row.className='tr'; row.tabIndex=0; row.setAttribute('role','button');
+        row.style.boxShadow = `inset 4px 0 0 0 ${cColor}`;
         row.innerHTML = `
           <div class="name">${esc(m.name||'(unnamed)')}</div>
-          <div class="mut">${esc(m.class||'')}</div>
+          <div class="mut"><span class="class-dot" style="background:${cColor}"></span>${esc(m.class||'')}</div>
           <div><span class="route-pill" style="border-color:${color}; color:${color}">${esc(m.route||'')}</span></div>
           <div>${esc(m.dose||'')}</div>
           <div class="actions">
@@ -292,9 +303,10 @@ function classColor(c){
 
     function openModal(m){
       modalTitle.textContent = m.name || '(unnamed)';
+      const rColor = ROUTE_COLORS[rKey(m.route)] || '#b8c0ea';
       modalContent.innerHTML = `
-        <div><strong>Class:</strong> ${esc(m.class||'')}</div>
-        <div><strong>Route:</strong> ${esc(m.route||'')} &nbsp; <strong>Dose:</strong> ${esc(m.dose||'')}</div>
+        <div><strong>Class:</strong> <span class="class-dot" style="background:${classColor(m.class)}"></span> ${esc(m.class||'')}</div>
+        <div><strong>Route:</strong> <span class="route-pill" style="border-color:${rColor}; color:${rColor}">${esc(m.route||'')}</span> &nbsp; <strong>Dose:</strong> ${esc(m.dose||'')}</div>
         ${m.indications?`<div><strong>Indications:</strong> ${esc(m.indications)}</div>`:''}
         ${m.contraindications?`<div><strong>Contraindications:</strong> ${esc(m.contraindications)}</div>`:''}
         ${m.lactation?`<div><strong>Pregnancy/Lactation:</strong> ${esc(m.lactation)}</div>`:''}
@@ -311,7 +323,7 @@ function classColor(c){
     window.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeModal(); });
 
     // ===== Import / Export =====
-    const btnExport=$("#btn-export"), btnImport=$("#btn-import"), fileImport=$("#file-import");
+    const btnExport=document.getElementById('btn-export'), btnImport=document.getElementById('btn-import'), fileImport=document.getElementById('file-import');
     btnExport.onclick = exportMeds; btnImport.onclick = ()=>fileImport.click();
     fileImport.onchange = async (e)=>{
       const f=e.target.files?.[0]; if(!f) return; try{ const text=await f.text(); const parsed=JSON.parse(text); await importMeds(parsed); alert('Import complete'); } catch(err){ alert('Import failed: '+(err?.message||err)); } fileImport.value=''; };
