@@ -234,7 +234,7 @@
     // Create / Update
     document.querySelector('#med-form').addEventListener('submit', async e => {
       e.preventDefault(); const user=auth.currentUser; if(!user) return alert('Sign in first.');
-      const payload={}; inputIds.forEach(id=>payload[id.slice(5)]=inputs[id].value.trim()); payload.createdAt=serverTimestamp(); payload.updatedAt=serverTimestamp();
+      const payload={}; inputIds.forEach(id=>payload[id.slice(5)]=inputs[id].value); payload.createdAt=serverTimestamp(); payload.updatedAt=serverTimestamp();
       try{ if(idEl.value){ await updateDoc(doc(db,`users/${user.uid}/medications/${idEl.value}`), payload); } else { await addDoc(collection(db,`users/${user.uid}/medications`), payload); } clearForm(); }
       catch(err){ alert(err.message); }
     });
