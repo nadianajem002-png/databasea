@@ -232,12 +232,34 @@
     });
 
     // Create / Update
-    document.querySelector('#med-form').addEventListener('submit', async e => {
-      e.preventDefault(); const user=auth.currentUser; if(!user) return alert('Sign in first.');
-      const payload={}; inputIds.forEach(id=>payload[id.slice(5)]=inputs[id].value); payload.createdAt=serverTimestamp(); payload.updatedAt=serverTimestamp();
-      try{ if(idEl.value){ await updateDoc(doc(db,`users/${user.uid}/medications/${idEl.value}`), payload); } else { await addDoc(collection(db,`users/${user.uid}/medications`), payload); } clearForm(); }
-      catch(err){ alert(err.message); }
-    });
+document.querySelector('#med-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const user = auth.currentUser;
+  if (!user) { alert('Sign in first.'); return; }
+
+  // Build payload WITHOUT trimming so quotes/special chars are preserved
+  const payload = {};
+  for (const id of inputIds) {
+    payload[id.slice(5)] = inputs[id].value;
+  }
+
+  try {
+    const base = `users/${user.uid}/medications`;
+    if (idEl.value) {
+      // Update existing
+      payload.updatedAt = serverTimestamp();
+      await updateDoc(doc(db, `${base}/${idEl.value}`), payload);
+    } else {
+      // Create new
+      payload.createdAt = serverTimestamp();
+      payload.updatedAt = serverTimestamp();
+      await addDoc(collection(db, base), payload);
+    }
+    clearForm();
+  } catch (err) {
+    alert(err?.message || String(err));
+  }
+});
     document.querySelector('#btn-reset').onclick = clearForm;
 
     async function handleDelete(id){
