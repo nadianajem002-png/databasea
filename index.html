@@ -43,6 +43,10 @@
     .tr.head{background:transparent; border:none; padding:0}
     .name{font-weight:700}
     .route-pill{display:inline-block; padding:4px 10px; border-radius:999px; border:1px solid var(--line); font-size:12px}
+    /* colored dot + left stripe by drug class */
+    .class-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:middle}
+    .tr{position:relative}
+    .tr::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;border-top-left-radius:12px;border-bottom-left-radius:12px;background:transparent}
     .actions{display:flex; gap:6px; justify-content:flex-end}
     .iconbtn{cursor:pointer; background:transparent; border:1px solid var(--line); color:var(--fg); padding:6px 8px; border-radius:10px}
     .tr:hover{outline:1px solid color-mix(in oklab, var(--line) 70%, var(--accent));}
@@ -74,9 +78,10 @@
       <span style="flex:1"></span>
       <input id="search" type="search" placeholder="Search name, class, indications, side effects…" style="min-width:280px">
       <select id="sort">
-        <option value="new">Newest</option>
-        <option value="az">A → Z</option>
-        <option value="class">Class</option>
+      <option value="new">Newest</option>
+      <option value="az">A → Z</option>
+      <option value="za">Z → A</option>
+      <option value="class">Class</option>
       </select>
       <button id="btn-export" class="btn-ghost">Export JSON</button>
       <button id="btn-import" class="btn-ghost">Import JSON</button>
@@ -168,7 +173,39 @@
 
     const searchEl=$("#search"), sortEl=$("#sort");
 
-    const ROUTE_COLORS = { PO:'#8ab4ff', IV:'#7affba', IM:'#ffd166', SC:'#f78da7', PATCH:'#b4a0ff', PR:'#a0e7e5', TOPICAL:'#ffadad', INHALATION:'#9bf6ff', SL:'#caffbf', SUBLINGUAL:'#caffbf' };
+    const ROUTE_COLORS = {const ROUTE_COLORS = { PO:'#8ab4ff', IV:'#7affba', IM:'#ffd166', SC:'#f78da7', PATCH:'#b4a0ff', PR:'#a0e7e5', TOPICAL:'#ffadad', INHALATION:'#9bf6ff', SL:'#caffbf', SUBLINGUAL:'#caffbf' };
+
+// Class colors (extend as you like)
+const CLASS_COLORS = {
+  'opioid analgesic':'#fca5a5',
+  'antihistamine':'#93c5fd',
+  'benzodiazepine':'#c4b5fd',
+  'antipsychotic':'#f9a8d4',
+  'atypical antipsychotic':'#f472b6',
+  'sleep aid':'#fde68a',
+  'osmotic laxative':'#86efac',
+  'stimulant laxative':'#34d399',
+  'hyperosmotic laxative':'#6ee7b7',
+  'anticholinergic':'#fcd34d',
+  'anticholinergic bronchodilator':'#fbbf24',
+  'ics + laba':'#a5b4fc',
+  'potassium-sparing diuretic':'#fca5a5',
+  'loop diuretic':'#f87171',
+  'ace inhibitor':'#60a5fa',
+  'statin':'#38bdf8',
+  'ppi':'#a7f3d0'
+};
+function classColor(c){
+  if(!c) return '#b8c0ea';
+  const key = c.toString().toLowerCase().trim();
+  if (CLASS_COLORS[key]) return CLASS_COLORS[key];
+  const first = key.split(/[ /-]/)[0];
+  if (CLASS_COLORS[first]) return CLASS_COLORS[first];
+  // fallback: deterministic pastel from string
+  let h=0; for(let i=0;i<key.length;i++){ h=(h*31 + key.charCodeAt(i))>>>0; }
+  const hue=h%360; return `hsl(${hue} 70% 70%)`;
+}
+};
     const rKey = v => (v||'').toString().trim().toUpperCase().replace('INH','INHALATION');
 
     let unsub=null; let allMeds=[];
@@ -214,12 +251,12 @@
     function filtered(){
       const q=(searchEl.value||'').toLowerCase();
       let lst = allMeds.slice();
-      if(q){ lst = lst.filter(m=>(`${m.name||''} ${m.class||''} ${m.indications||''} ${m.sidefx||''}`).toLowerCase().includes(q)); }
-      if(sortEl.value==='az') lst.sort((a,b)=> (a.name||'').localeCompare(b.name||''));
-      if(sortEl.value==='class') lst.sort((a,b)=> (a.class||'').localeCompare(b.class||''));
-      return lst; // default newest already via query
-    }
-
+     if (sortEl.value==='az')
+      lst.sort((a,b)=> (a.name||'').localeCompare((b.name||''), undefined, {sensitivity:'base'}));
+    if (sortEl.value==='za')
+      lst.sort((a,b)=> (b.name||'').localeCompare((a.name||''), undefined, {sensitivity:'base'}));
+    if (sortEl.value==='class')
+      lst.sort((a,b)=> (a.class||'').localeCompare((b.class||''), undefined, {sensitivity:'base'}));
     function render(){
       const meds = filtered();
       emptyEl.style.display = meds.length ? 'none' : '';
