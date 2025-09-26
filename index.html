@@ -41,7 +41,7 @@
     .tr.head{background:transparent; border:none; padding:0; grid-template-columns: 70px 2fr 1.2fr 0.8fr 1fr 80px}
     .name{font-weight:700}
     .route-pill{display:inline-block; padding:4px 10px; border-radius:999px; border:1px solid var(--line); font-size:12px}
-    .thumb{width:56px;height:42px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+    .thumb{width:56px;height:42px;object-fit:cover;border-radius:6px;border:1px solid var(--line); background:rgba(255,255,255,.04)}
     /* class color dot + left stripe */
     .class-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:middle}
     .tr::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;border-top-left-radius:12px;border-bottom-left-radius:12px;background:transparent}
@@ -59,7 +59,7 @@
     .modal{max-width:820px; width:100%; background:var(--card); color:var(--fg); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow)}
     .modal header{display:flex; justify-content:space-between; align-items:center; padding:14px}
     .modal .content{padding:14px; display:grid; gap:8px}
-    .modal img.hero{max-width:100%;max-height:280px;object-fit:contain;border-radius:10px;border:1px solid var(--line)}
+    .modal img.hero{max-width:100%;max-height:280px;object-fit:contain;border-radius:10px;border:1px solid var(--line); background:rgba(255,255,255,.04)}
   </style>
 </head>
 <body>
@@ -138,7 +138,7 @@
   </div>
 
   <script type="module">
-    // Firebase
+    // ========================= Firebase =========================
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
     import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
     import { getFirestore, collection, addDoc, setDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
@@ -158,7 +158,7 @@
     const db = getFirestore(app);
     const storage = getStorage(app);
 
-    // DOM helpers
+    // ========================= DOM helpers =========================
     const $ = sel => document.querySelector(sel);
     const listEl = $("#list");
     const emptyEl = $("#empty");
@@ -224,20 +224,22 @@
       }
     });
 
-    // Image preview
+    // ========================= Image preview =========================
     imgInput?.addEventListener('change', () => {
       const f = imgInput.files?.[0];
       if (!f) { imgPreview.style.display='none'; imgPreview.src=''; return; }
       const url = URL.createObjectURL(f);
       imgPreview.src = url; imgPreview.style.display = 'block';
+      // If user picked a new file, ensure we don't accidentally keep old URL
+      if (imgUrlEl) imgUrlEl.value = '';
     });
 
-    // Create / Update with image support (atomic create with image)
+    // ========================= Create / Update with image =========================
     document.querySelector('#med-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const user = auth.currentUser; if(!user){ alert('Sign in first.'); return; }
 
-      // Build payload (preserve special chars)
+      // Build payload
       const payload = {}; for (const id of inputIds) payload[id.slice(5)] = inputs[id].value;
 
       // carry current image unless replaced
@@ -250,21 +252,23 @@
         if (idEl.value){
           // ========= EDIT =========
           if (f){
-            const path = `${basePath}/${idEl.value}/image-${Date.now()}.jpg`;
+            const ext = (f.name?.split('.').pop()||'jpg').toLowerCase();
+            const path = `${basePath}/${idEl.value}/image-${Date.now()}.${ext}`;
             const storageRef = sRef(storage, path);
-            await uploadBytes(storageRef, f);
+            await uploadBytes(storageRef, f, { contentType: f.type || 'image/jpeg' });
             payload.imageUrl = await getDownloadURL(storageRef);
             if (imgUrlEl) imgUrlEl.value = payload.imageUrl;
           }
           payload.updatedAt = serverTimestamp();
           await updateDoc(doc(db, `${basePath}/${idEl.value}`), payload);
         } else {
-          // ========= CREATE (atomic set with image) =========
-          const newRef = doc(collection(db, basePath)); // pre-create doc ID
+          // ========= CREATE (pre-generate ID so we can nest image under it) =========
+          const newRef = doc(collection(db, basePath));
           if (f){
-            const path = `${basePath}/${newRef.id}/image-${Date.now()}.jpg`;
+            const ext = (f.name?.split('.').pop()||'jpg').toLowerCase();
+            const path = `${basePath}/${newRef.id}/image-${Date.now()}.${ext}`;
             const storageRef = sRef(storage, path);
-            await uploadBytes(storageRef, f);
+            await uploadBytes(storageRef, f, { contentType: f.type || 'image/jpeg' });
             payload.imageUrl = await getDownloadURL(storageRef);
             if (imgUrlEl) imgUrlEl.value = payload.imageUrl;
           }
@@ -273,7 +277,7 @@
           await setDoc(newRef, payload);
         }
         clearForm();
-      }catch(err){ alert(err?.message || String(err)); }
+      }catch(err){ console.error(err); alert(err?.message || String(err)); }
     });
 
     document.querySelector('#btn-reset').onclick = clearForm;
@@ -291,7 +295,7 @@
       window.scrollTo({top:0,behavior:'smooth'});
     }
 
-    // Search / Sort
+    // ========================= Search / Sort =========================
     function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); } }
     searchEl.addEventListener('input', debounce(render, 120));
     sortEl.addEventListener('change', render);
@@ -316,7 +320,7 @@
         const row = document.createElement('div'); row.className='tr'; row.tabIndex=0; row.setAttribute('role','button');
         row.style.boxShadow = `inset 4px 0 0 0 ${cColor}`;
         row.innerHTML = `
-          <div>${m.imageUrl ? `<img src="${esc(m.imageUrl)}" alt="" class="thumb">` : ''}</div>
+          <div>${m.imageUrl ? `<img src="${esc(m.imageUrl)}" alt="" class="thumb">` : '<div class="thumb" aria-hidden="true"></div>'}</div>
           <div class="name">${esc(m.name||'(unnamed)')}</div>
           <div class="mut"><span class="class-dot" style="background:${cColor}"></span>${esc(m.class||'')}</div>
           <div><span class="route-pill" style="border-color:${color}; color:${color}">${esc(m.route||'')}</span></div>
@@ -342,7 +346,7 @@
 
     function esc(s){ return (s??'').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])); }
 
-    // ===== Modal =====
+    // ========================= Modal =========================
     const modalBackdrop = document.getElementById('modal-backdrop');
     const modalTitle = document.getElementById('modal-title');
     const modalContent = document.getElementById('modal-content');
@@ -370,7 +374,7 @@
     modalBackdrop.addEventListener('click', (e)=>{ if(e.target===modalBackdrop) closeModal(); });
     window.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeModal(); });
 
-    // ===== Import / Export =====
+    // ========================= Import / Export =========================
     const btnExport=$("#btn-export"), btnImport=$("#btn-import"), fileImport=$("#file-import");
     btnExport.onclick = exportMeds; btnImport.onclick = ()=>fileImport.click();
     fileImport.onchange = async (e)=>{
