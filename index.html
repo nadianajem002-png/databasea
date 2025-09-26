@@ -96,9 +96,6 @@
         <input id="med-class" placeholder="Class" />
         <input id="med-dose" placeholder="Dose (e.g., 500 mg BID)" />
         <input id="med-image" type="file" accept="image/*" />
-        const imgInput = document.getElementById('med-image');
-        const imgPreview = document.getElementById('med-image-preview');
-        const imgUrlEl  = document.getElementById('med-image-url');
         <img id="med-image-preview" alt="" style="max-width:160px; max-height:120px; border:1px solid var(--line); border-radius:8px; display:none" />
         <textarea id="med-indications" placeholder="Indications"></textarea>
         <textarea id="med-contraindications" placeholder="Contraindications"></textarea>
@@ -181,6 +178,11 @@
 
     const searchEl=$("#search"), sortEl=$("#sort");
 
+    // Image elements
+    const imgInput  = document.getElementById('med-image');
+    const imgPreview = document.getElementById('med-image-preview');
+    const imgUrlEl   = document.getElementById('med-image-url');
+
     // Route colors
     const ROUTE_COLORS = { PO:'#8ab4ff', IV:'#7affba', IM:'#ffd166', SC:'#f78da7', PATCH:'#b4a0ff', PR:'#a0e7e5', TOPICAL:'#ffadad', INHALATION:'#9bf6ff', SL:'#caffbf', SUBLINGUAL:'#caffbf' };
     const rKey = v => (v||'').toString().trim().toUpperCase().replace('INH','INHALATION');
@@ -223,15 +225,12 @@
     });
 
     // Image preview
-    const imgInput = document.getElementById('med-image');
-    const imgPreview = document.getElementById('med-image-preview');
-      imgInput?.addEventListener('change', () => {
+    imgInput?.addEventListener('change', () => {
       const f = imgInput.files?.[0];
       if (!f) { imgPreview.style.display='none'; imgPreview.src=''; return; }
       const url = URL.createObjectURL(f);
-      imgPreview.src = url;
-      imgPreview.style.display = 'block';
-      });
+      imgPreview.src = url; imgPreview.style.display = 'block';
+    });
 
     // Create / Update with image support
     document.querySelector('#med-form').addEventListener('submit', async (e) => {
@@ -239,7 +238,7 @@
       const user = auth.currentUser; if(!user){ alert('Sign in first.'); return; }
 
       const payload = {}; for (const id of inputIds) payload[id.slice(5)] = inputs[id].value; // keep special chars
-      payload.imageUrl = payload.imageUrl || '';
+      payload.imageUrl = imgUrlEl?.value || '';
 
       const f = imgInput?.files?.[0] || null;
 
@@ -251,6 +250,7 @@
             const path = `${basePath}/${idEl.value}/image-${Date.now()}.jpg`;
             await uploadBytes(sRef(storage, path), f);
             payload.imageUrl = await getDownloadURL(sRef(storage, path));
+            if (imgUrlEl) imgUrlEl.value = payload.imageUrl;
           }
           payload.updatedAt = serverTimestamp();
           await updateDoc(doc(db, `${basePath}/${idEl.value}`), payload);
@@ -264,6 +264,7 @@
             await uploadBytes(sRef(storage, path), f);
             const url = await getDownloadURL(sRef(storage, path));
             await updateDoc(newRef, { imageUrl: url });
+            if (imgUrlEl) imgUrlEl.value = url;
           }
         }
         clearForm();
@@ -278,13 +279,12 @@
     }
 
     function handleEdit(m){
-      idEl.value = m.id;
-      for (const id of inputIds) { inputs[id].value = m[id.slice(5)] || ''; }
-      imgUrlEl.value = m.imageUrl || '';
-      if (imgPreview) { imgPreview.src = m.imageUrl || ''; imgPreview.style.display = m.imageUrl ? 'block' : 'none'; }
-      if (imgInput) imgInput.value = '';
+      idEl.value=m.id; for(const id of inputIds){ inputs[id].value = m[id.slice(5)] || ''; }
+      if(imgUrlEl) imgUrlEl.value = m.imageUrl || '';
+      if(imgPreview){ imgPreview.src = m.imageUrl||''; imgPreview.style.display = m.imageUrl? 'block':'none'; }
+      if(imgInput) imgInput.value='';
       window.scrollTo({top:0,behavior:'smooth'});
-      }
+    }
 
     // Search / Sort
     function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); } }
@@ -327,13 +327,13 @@
       }
     }
 
-      function clearForm(){
+    function clearForm(){
       Object.values(inputs).forEach(i=>i.value='');
       document.querySelector('#med-id').value='';
-      if (imgInput) imgInput.value='';
-      if (imgPreview){ imgPreview.src=''; imgPreview.style.display='none'; }
-      if (imgUrlEl) imgUrlEl.value='';
-      }
+      if(imgInput) imgInput.value='';
+      if(imgPreview){ imgPreview.src=''; imgPreview.style.display='none'; }
+      if(imgUrlEl) imgUrlEl.value='';
+    }
 
     function esc(s){ return (s??'').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])); }
 
