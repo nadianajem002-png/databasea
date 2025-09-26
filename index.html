@@ -90,11 +90,15 @@
     <section class="card" style="margin-bottom:12px">
       <h3 style="margin:4px 0 10px">Add / Edit medication</h3>
       <form id="med-form">
+        <input id="med-image-url" type="hidden" />
         <input id="med-name" placeholder="Name" required />
         <input id="med-route" placeholder="Route (PO, IV, IM, SC, patch, PR, topical, inhalation)" />
         <input id="med-class" placeholder="Class" />
         <input id="med-dose" placeholder="Dose (e.g., 500 mg BID)" />
         <input id="med-image" type="file" accept="image/*" />
+        const imgInput = document.getElementById('med-image');
+        const imgPreview = document.getElementById('med-image-preview');
+        const imgUrlEl  = document.getElementById('med-image-url');
         <img id="med-image-preview" alt="" style="max-width:160px; max-height:120px; border:1px solid var(--line); border-radius:8px; display:none" />
         <textarea id="med-indications" placeholder="Indications"></textarea>
         <textarea id="med-contraindications" placeholder="Contraindications"></textarea>
@@ -147,7 +151,7 @@
       apiKey: "AIzaSyB4SLwd4A3wNrstcHNzuI83z0G8e-1AK50",
       authDomain: "nadia-b4de4.firebaseapp.com",
       projectId: "nadia-b4de4",
-      storageBucket: "nadia-b4de4.firebasestorage.app",
+      storageBucket: "nadia-b4de4.appspot.com",
       messagingSenderId: "354468688054",
       appId: "1:354468688054:web:9163d3700f3fd4c0097617"
     };
@@ -221,12 +225,13 @@
     // Image preview
     const imgInput = document.getElementById('med-image');
     const imgPreview = document.getElementById('med-image-preview');
-    imgInput?.addEventListener('change', () => {
+      imgInput?.addEventListener('change', () => {
       const f = imgInput.files?.[0];
       if (!f) { imgPreview.style.display='none'; imgPreview.src=''; return; }
       const url = URL.createObjectURL(f);
-      imgPreview.src = url; imgPreview.style.display = 'block';
-    });
+      imgPreview.src = url;
+      imgPreview.style.display = 'block';
+      });
 
     // Create / Update with image support
     document.querySelector('#med-form').addEventListener('submit', async (e) => {
@@ -273,11 +278,13 @@
     }
 
     function handleEdit(m){
-      idEl.value=m.id; for(const id of inputIds){ inputs[id].value = m[id.slice(5)] || ''; }
-      if(imgPreview){ imgPreview.src = m.imageUrl||''; imgPreview.style.display = m.imageUrl? 'block':'none'; }
-      if(imgInput){ imgInput.value=''; }
+      idEl.value = m.id;
+      for (const id of inputIds) { inputs[id].value = m[id.slice(5)] || ''; }
+      imgUrlEl.value = m.imageUrl || '';
+      if (imgPreview) { imgPreview.src = m.imageUrl || ''; imgPreview.style.display = m.imageUrl ? 'block' : 'none'; }
+      if (imgInput) imgInput.value = '';
       window.scrollTo({top:0,behavior:'smooth'});
-    }
+      }
 
     // Search / Sort
     function debounce(fn,ms){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); } }
@@ -320,12 +327,13 @@
       }
     }
 
-    function clearForm(){
+      function clearForm(){
       Object.values(inputs).forEach(i=>i.value='');
       document.querySelector('#med-id').value='';
-      if(imgInput) imgInput.value='';
-      if(imgPreview){ imgPreview.src=''; imgPreview.style.display='none'; }
-    }
+      if (imgInput) imgInput.value='';
+      if (imgPreview){ imgPreview.src=''; imgPreview.style.display='none'; }
+      if (imgUrlEl) imgUrlEl.value='';
+      }
 
     function esc(s){ return (s??'').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])); }
 
