@@ -141,7 +141,7 @@
     // Firebase
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
     import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+    import { getFirestore, collection, addDoc, setDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
     import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-storage.js";
 
     const firebaseConfig = {
@@ -187,7 +187,7 @@
     const ROUTE_COLORS = { PO:'#8ab4ff', IV:'#7affba', IM:'#ffd166', SC:'#f78da7', PATCH:'#b4a0ff', PR:'#a0e7e5', TOPICAL:'#ffadad', INHALATION:'#9bf6ff', SL:'#caffbf', SUBLINGUAL:'#caffbf' };
     const rKey = v => (v||'').toString().trim().toUpperCase().replace('INH','INHALATION');
 
-    // Class color helpers (optional; safe fallback if not set)
+    // Class color helpers
     const CLASS_COLORS = {
       'opioid analgesic':'#fca5a5','antihistamine':'#93c5fd','benzodiazepine':'#c4b5fd','antipsychotic':'#f9a8d4',
       'atypical antipsychotic':'#f472b6','sleep aid':'#fde68a','osmotic laxative':'#86efac','stimulant laxative':'#34d399',
@@ -232,40 +232,45 @@
       imgPreview.src = url; imgPreview.style.display = 'block';
     });
 
-    // Create / Update with image support
+    // Create / Update with image support (atomic create with image)
     document.querySelector('#med-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const user = auth.currentUser; if(!user){ alert('Sign in first.'); return; }
 
-      const payload = {}; for (const id of inputIds) payload[id.slice(5)] = inputs[id].value; // keep special chars
+      // Build payload (preserve special chars)
+      const payload = {}; for (const id of inputIds) payload[id.slice(5)] = inputs[id].value;
+
+      // carry current image unless replaced
       payload.imageUrl = imgUrlEl?.value || '';
 
       const f = imgInput?.files?.[0] || null;
+      const basePath = `users/${user.uid}/medications`;
 
       try{
-        const basePath = `users/${user.uid}/medications`;
         if (idEl.value){
-          // update existing
+          // ========= EDIT =========
           if (f){
             const path = `${basePath}/${idEl.value}/image-${Date.now()}.jpg`;
-            await uploadBytes(sRef(storage, path), f);
-            payload.imageUrl = await getDownloadURL(sRef(storage, path));
+            const storageRef = sRef(storage, path);
+            await uploadBytes(storageRef, f);
+            payload.imageUrl = await getDownloadURL(storageRef);
             if (imgUrlEl) imgUrlEl.value = payload.imageUrl;
           }
           payload.updatedAt = serverTimestamp();
           await updateDoc(doc(db, `${basePath}/${idEl.value}`), payload);
         } else {
-          // create new first, then upload
-          payload.createdAt = serverTimestamp();
-          payload.updatedAt = serverTimestamp();
-          const newRef = await addDoc(collection(db, basePath), payload);
+          // ========= CREATE (atomic set with image) =========
+          const newRef = doc(collection(db, basePath)); // pre-create doc ID
           if (f){
             const path = `${basePath}/${newRef.id}/image-${Date.now()}.jpg`;
-            await uploadBytes(sRef(storage, path), f);
-            const url = await getDownloadURL(sRef(storage, path));
-            await updateDoc(newRef, { imageUrl: url });
-            if (imgUrlEl) imgUrlEl.value = url;
+            const storageRef = sRef(storage, path);
+            await uploadBytes(storageRef, f);
+            payload.imageUrl = await getDownloadURL(storageRef);
+            if (imgUrlEl) imgUrlEl.value = payload.imageUrl;
           }
+          payload.createdAt = serverTimestamp();
+          payload.updatedAt = serverTimestamp();
+          await setDoc(newRef, payload);
         }
         clearForm();
       }catch(err){ alert(err?.message || String(err)); }
