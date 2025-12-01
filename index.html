@@ -34,7 +34,7 @@
 
     .card{background:var(--card); border:1px solid var(--line); border-radius:var(--borderRadius); padding:12px; box-shadow:var(--shadow)}
 
-    /* ========================= LIST (table‑like) ========================= */
+    /* ========================= LIST (table-like) ========================= */
     .table{width:100%; border-collapse:separate; border-spacing:0 8px}
     .tr{display:grid; grid-template-columns: 70px 2fr 1.2fr 0.8fr 1fr 80px; align-items:center; gap:12px; padding:10px; background:var(--card); border:1px solid var(--line); border-radius:12px; position:relative}
     .th{font-size:12px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em}
@@ -42,7 +42,6 @@
     .name{font-weight:700}
     .route-pill{display:inline-block; padding:4px 10px; border-radius:999px; border:1px solid var(--line); font-size:12px}
     .thumb{width:56px;height:42px;object-fit:cover;border-radius:6px;border:1px solid var(--line); background:rgba(255,255,255,.04)}
-    /* class color dot + left stripe */
     .class-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:8px;vertical-align:middle}
     .tr::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;border-top-left-radius:12px;border-bottom-left-radius:12px;background:transparent}
     .actions{display:flex; gap:6px; justify-content:flex-end}
@@ -65,7 +64,7 @@
 <body>
   <div class="wrap">
     <h1>Personal Medication Database (Nursing)</h1>
-    <p class="hint">Per‑user accounts with private meds. Search, route colors, images, and a detail popup.</p>
+    <p class="hint">Per-user accounts with private meds. Search, route colors, images, and a detail popup.</p>
 
     <div class="toolbar card">
       <span id="auth-status" class="hint">Signed out</span>
@@ -75,7 +74,7 @@
       <button id="btn-signin" class="btn">Sign in</button>
       <button id="btn-signout" class="btn-ghost" style="display:none">Sign out</button>
       <span style="flex:1"></span>
-      <input id="search" type="search" placeholder="Search name, class, indications, side effects…" style="min-width:280px">
+      <input id="search" type="search" placeholder="Search name, class, mechanism, indications, side effects…" style="min-width:280px">
       <select id="sort">
         <option value="new">Newest</option>
         <option value="az">A → Z</option>
@@ -95,15 +94,21 @@
         <input id="med-route" placeholder="Route (PO, IV, IM, SC, patch, PR, topical, inhalation)" />
         <input id="med-class" placeholder="Class" />
         <input id="med-dose" placeholder="Dose (e.g., 500 mg BID)" />
+
         <input id="med-image" type="file" accept="image/*" />
         <img id="med-image-preview" alt="" style="max-width:160px; max-height:120px; border:1px solid var(--line); border-radius:8px; display:none" />
+
+        <!-- ⭐ NEW: Mechanism of Action + Nursing Considerations -->
+        <textarea id="med-mechanism" placeholder="Mechanism of Action"></textarea>
         <textarea id="med-indications" placeholder="Indications"></textarea>
         <textarea id="med-contraindications" placeholder="Contraindications"></textarea>
         <textarea id="med-lactation" placeholder="Pregnancy/Lactation notes"></textarea>
-        <textarea id="med-sidefx" placeholder="Side Effects"></textarea>
+        <textarea id="med-sidefx" placeholder="Side Effects / Adverse Effects"></textarea>
         <textarea id="med-interactions" placeholder="Drug Interactions"></textarea>
-        <textarea id="med-monitoring" placeholder="Monitoring Parameters"></textarea>
+        <textarea id="med-monitoring" placeholder="Monitoring Parameters (labs, vitals, etc.)"></textarea>
+        <textarea id="med-nursing" placeholder="Nursing Considerations (assessments, teaching, when to hold, safety notes)"></textarea>
         <textarea id="med-notes" placeholder="Additional Notes"></textarea>
+
         <div style="grid-column:1/-1; display:flex; gap:8px; justify-content:flex-end">
           <button type="submit" class="btn">Save</button>
           <button type="button" id="btn-reset" class="btn-ghost">Reset</button>
@@ -141,7 +146,7 @@
     // ========================= Firebase =========================
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
     import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-auth.js";
-    import { getFirestore, collection, addDoc, setDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc, getDocs, writeBatch } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
+    import { getFirestore, collection, setDoc, onSnapshot, query, orderBy, serverTimestamp, doc, updateDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-firestore.js";
     import { getStorage, ref as sRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-storage.js";
 
     const firebaseConfig = {
@@ -165,8 +170,11 @@
 
     const inputIds = [
       "#med-name","#med-route","#med-class","#med-dose",
+      "#med-mechanism",            // ⭐ NEW
       "#med-indications","#med-contraindications","#med-lactation","#med-sidefx",
-      "#med-interactions","#med-monitoring","#med-notes"
+      "#med-interactions","#med-monitoring",
+      "#med-nursing",              // ⭐ NEW
+      "#med-notes"
     ];
     const inputs = Object.fromEntries(inputIds.map(id=>[id,$(id)]));
     const idEl = $("#med-id");
@@ -230,7 +238,6 @@
       if (!f) { imgPreview.style.display='none'; imgPreview.src=''; return; }
       const url = URL.createObjectURL(f);
       imgPreview.src = url; imgPreview.style.display = 'block';
-      // If user picked a new file, ensure we don't accidentally keep old URL
       if (imgUrlEl) imgUrlEl.value = '';
     });
 
@@ -239,10 +246,11 @@
       e.preventDefault();
       const user = auth.currentUser; if(!user){ alert('Sign in first.'); return; }
 
-      // Build payload
-      const payload = {}; for (const id of inputIds) payload[id.slice(5)] = inputs[id].value;
+      const payload = {};
+      for (const id of inputIds) {
+        payload[id.slice(5)] = inputs[id].value;
+      }
 
-      // carry current image unless replaced
       payload.imageUrl = imgUrlEl?.value || '';
 
       const f = imgInput?.files?.[0] || null;
@@ -250,7 +258,7 @@
 
       try{
         if (idEl.value){
-          // ========= EDIT =========
+          // EDIT
           if (f){
             const ext = (f.name?.split('.').pop()||'jpg').toLowerCase();
             const path = `${basePath}/${idEl.value}/image-${Date.now()}.${ext}`;
@@ -262,7 +270,7 @@
           payload.updatedAt = serverTimestamp();
           await updateDoc(doc(db, `${basePath}/${idEl.value}`), payload);
         } else {
-          // ========= CREATE (pre-generate ID so we can nest image under it) =========
+          // CREATE
           const newRef = doc(collection(db, basePath));
           if (f){
             const ext = (f.name?.split('.').pop()||'jpg').toLowerCase();
@@ -288,9 +296,15 @@
     }
 
     function handleEdit(m){
-      idEl.value=m.id; for(const id of inputIds){ inputs[id].value = m[id.slice(5)] || ''; }
+      idEl.value=m.id;
+      for(const id of inputIds){
+        inputs[id].value = m[id.slice(5)] || '';
+      }
       if(imgUrlEl) imgUrlEl.value = m.imageUrl || '';
-      if(imgPreview){ imgPreview.src = m.imageUrl||''; imgPreview.style.display = m.imageUrl? 'block':'none'; }
+      if(imgPreview){
+        imgPreview.src = m.imageUrl||'';
+        imgPreview.style.display = m.imageUrl? 'block':'none';
+      }
       if(imgInput) imgInput.value='';
       window.scrollTo({top:0,behavior:'smooth'});
     }
@@ -303,7 +317,16 @@
     function filtered(){
       const q=(searchEl.value||'').toLowerCase();
       let lst = allMeds.slice();
-      if(q){ lst = lst.filter(m=>(`${m.name||''} ${m.class||''} ${m.indications||''} ${m.sidefx||''}`).toLowerCase().includes(q)); }
+      if(q){
+        lst = lst.filter(m=>{
+          const haystack = [
+            m.name, m.class, m.mechanism, m.indications,
+            m.sidefx, m.nursing, m.contraindications,
+            m.interactions, m.monitoring
+          ].map(x=>x||'').join(' ').toLowerCase();
+          return haystack.includes(q);
+        });
+      }
       if(sortEl.value==='az') lst.sort((a,b)=> (a.name||'').localeCompare((b.name||''), undefined, {sensitivity:'base'}));
       if(sortEl.value==='za') lst.sort((a,b)=> (b.name||'').localeCompare((a.name||''), undefined, {sensitivity:'base'}));
       if(sortEl.value==='class') lst.sort((a,b)=> (a.class||'').localeCompare((b.class||''), undefined, {sensitivity:'base'}));
@@ -317,7 +340,10 @@
       for(const m of meds){
         const color = ROUTE_COLORS[rKey(m.route)] || '#b8c0ea';
         const cColor = classColor(m.class||'');
-        const row = document.createElement('div'); row.className='tr'; row.tabIndex=0; row.setAttribute('role','button');
+        const row = document.createElement('div');
+        row.className='tr';
+        row.tabIndex=0;
+        row.setAttribute('role','button');
         row.style.boxShadow = `inset 4px 0 0 0 ${cColor}`;
         row.innerHTML = `
           <div>${m.imageUrl ? `<img src="${esc(m.imageUrl)}" alt="" class="thumb">` : '<div class="thumb" aria-hidden="true"></div>'}</div>
@@ -329,7 +355,9 @@
             <button class="iconbtn" data-edit title="Edit">✎</button>
             <button class="iconbtn" data-del title="Delete">🗑</button>
           </div>`;
-        row.addEventListener('click', (ev)=>{ if(!(ev.target.closest('[data-edit]')||ev.target.closest('[data-del]'))) openModal(m); });
+        row.addEventListener('click', (ev)=>{
+          if(!(ev.target.closest('[data-edit]')||ev.target.closest('[data-del]'))) openModal(m);
+        });
         row.querySelector('[data-edit]').onclick = (e)=>{ e.stopPropagation(); handleEdit(m); };
         row.querySelector('[data-del]').onclick = (e)=>{ e.stopPropagation(); handleDelete(m.id); };
         listEl.appendChild(row);
@@ -344,7 +372,11 @@
       if(imgUrlEl) imgUrlEl.value='';
     }
 
-    function esc(s){ return (s??'').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])); }
+    function esc(s){
+      return (s??'').toString().replace(/[&<>"']/g, c => ({
+        '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'
+      }[c]));
+    }
 
     // ========================= Modal =========================
     const modalBackdrop = document.getElementById('modal-backdrop');
@@ -359,56 +391,22 @@
         ${m.imageUrl ? `<img src="${esc(m.imageUrl)}" alt="" class="hero">` : ''}
         <div><strong>Class:</strong> <span class="class-dot" style="background:${classColor(m.class||'')}"></span> ${esc(m.class||'')}</div>
         <div><strong>Route:</strong> <span class="route-pill" style="border-color:${rColor}; color:${rColor}">${esc(m.route||'')}</span> &nbsp; <strong>Dose:</strong> ${esc(m.dose||'')}</div>
+        ${m.mechanism?`<div><strong>Mechanism of Action:</strong> ${esc(m.mechanism)}</div>`:''}
         ${m.indications?`<div><strong>Indications:</strong> ${esc(m.indications)}</div>`:''}
         ${m.contraindications?`<div><strong>Contraindications:</strong> ${esc(m.contraindications)}</div>`:''}
-        ${m.lactation?`<div><strong>Pregnancy/Lactation:</strong> ${esc(m.lactation)}</div>`:''}
-        ${m.sidefx?`<div><strong>Side Effects:</strong> ${esc(m.sidefx)}</div>`:''}
-        ${m.interactions?`<div><strong>Interactions:</strong> ${esc(m.interactions)}</div>`:''}
-        ${m.monitoring?`<div><strong>Monitoring:</strong> ${esc(m.monitoring)}</div>`:''}
-        ${m.notes?`<div><strong>Notes:</strong> ${esc(m.notes)}</div>`:''}
+        ${m.lactation?`<div><strong>Pregnancy / Lactation:</strong> ${esc(m.lactation)}</div>`:''}
+        ${m.sidefx?`<div><strong>Side Effects / Adverse Effects:</strong> ${esc(m.sidefx)}</div>`:''}
+        ${m.interactions?`<div><strong>Drug Interactions:</strong> ${esc(m.interactions)}</div>`:''}
+        ${m.monitoring?`<div><strong>Monitoring Parameters:</strong> ${esc(m.monitoring)}</div>`:''}
+        ${m.nursing?`<div><strong>Nursing Considerations:</strong> ${esc(m.nursing)}</div>`:''}
+        ${m.notes?`<div><strong>Additional Notes:</strong> ${esc(m.notes)}</div>`:''}
       `;
-      modalBackdrop.style.display = 'flex';
-    }
-    function closeModal(){ modalBackdrop.style.display='none'; }
-    modalClose.onclick = closeModal;
-    modalBackdrop.addEventListener('click', (e)=>{ if(e.target===modalBackdrop) closeModal(); });
-    window.addEventListener('keydown', (e)=>{ if(e.key==='Escape') closeModal(); });
-
-    // ========================= Import / Export =========================
-    const btnExport=$("#btn-export"), btnImport=$("#btn-import"), fileImport=$("#file-import");
-    btnExport.onclick = exportMeds; btnImport.onclick = ()=>fileImport.click();
-    fileImport.onchange = async (e)=>{
-      const f=e.target.files?.[0]; if(!f) return; try{ const text=await f.text(); const parsed=JSON.parse(text); await importMeds(parsed); alert('Import complete'); } catch(err){ alert('Import failed: '+(err?.message||err)); } fileImport.value=''; };
-
-    async function exportMeds(){
-      const user=auth.currentUser; if(!user) return alert('Sign in first.');
-      const medsSnap=await getDocs(collection(db,`users/${user.uid}/medications`));
-      const meds=medsSnap.docs.map(d=>({id:d.id,...d.data()}));
-      const blob=new Blob([JSON.stringify(meds,null,2)],{type:'application/json'});
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a'); a.href=url; a.download=`meds-${user.uid}-${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      modalBackdrop.style.display='flex';
     }
 
-    async function importMeds(data){
-      const user=auth.currentUser; if(!user) return alert('Sign in first.');
-      const items = Array.isArray(data) ? data : (Array.isArray(data?.medications) ? data.medications : null);
-      if(!items) throw new Error('Invalid JSON: expected an array or { medications: [] }');
-      const batch = writeBatch(db);
-      for(const raw of items){
-        const m = normalize(raw);
-        const ref = doc(collection(db,`users/${user.uid}/medications`));
-        batch.set(ref, { ...m, createdAt: serverTimestamp(), updatedAt: serverTimestamp() });
-      }
-      await batch.commit();
-    }
+    modalClose.addEventListener('click', ()=>{ modalBackdrop.style.display='none'; });
+    modalBackdrop.addEventListener('click', (e)=>{ if(e.target===modalBackdrop) modalBackdrop.style.display='none'; });
 
-    function normalize(o){
-      return {
-        name:o.name||o.title||'', route:o.route||'', class:o.class||o.drugClass||'', dose:o.dose||o.dosage||'',
-        indications:o.indications||o.uses||'', contraindications:o.contraindications||o.contra||'', lactation:o.lactation||o.pregnancy||o.pregnancyLactation||'',
-        sidefx:o.sidefx||o.sideEffects||o.adverse||'', interactions:o.interactions||'', monitoring:o.monitoring||'', notes:o.notes||'', imageUrl:o.imageUrl||''
-      };
-    }
   </script>
 </body>
 </html>
