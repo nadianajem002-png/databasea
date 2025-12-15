@@ -67,6 +67,24 @@
       box-shadow:var(--shadow)
     }
 
+    /* ========================= Smooth auth transitions ========================= */
+    .auth-group{
+      display:flex;
+      gap:8px;
+      flex-wrap:wrap;
+      align-items:center;
+      transition: opacity .25s ease, transform .25s ease;
+    }
+    .auth-group.hidden{
+      opacity:0;
+      pointer-events:none;
+      transform: translateY(-4px);
+    }
+    .auth-group.visible{
+      opacity:1;
+      transform: translateY(0);
+    }
+
     /* ========================= LIST (table-like) ========================= */
     .table{width:100%; border-collapse:separate; border-spacing:0 8px}
     .tr{
@@ -200,11 +218,19 @@
 </p>
     <div class="toolbar card">
       <span id="auth-status" class="hint">Signed out</span>
-      <input id="auth-email" type="email" placeholder="email" autocomplete="username" />
-      <input id="auth-pass" type="password" placeholder="password" autocomplete="current-password" />
-      <button id="btn-signup" class="btn-ghost">Sign up</button>
-      <button id="btn-signin" class="btn">Sign in</button>
-      <button id="btn-signout" class="btn-ghost" style="display:none">Sign out</button>
+
+      <!-- Smooth auth UI -->
+      <div id="auth-signed-out" class="auth-group visible">
+        <input id="auth-email" type="email" placeholder="email" autocomplete="username" />
+        <input id="auth-pass" type="password" placeholder="password" autocomplete="current-password" />
+        <button id="btn-signup" class="btn-ghost">Sign up</button>
+        <button id="btn-signin" class="btn">Sign in</button>
+      </div>
+
+      <div id="auth-signed-in" class="auth-group hidden">
+        <button id="btn-signout" class="btn-ghost">Sign out</button>
+      </div>
+
       <span style="flex:1"></span>
       <input id="search" type="search" placeholder="Search name, class, indications, side effects…" style="min-width:280px">
       <select id="sort">
@@ -349,15 +375,59 @@
     const emailEl = $("#auth-email");
     const passEl  = $("#auth-pass");
 
-    btnUp.onclick = () => {
-      createUserWithEmailAndPassword(auth, emailEl.value, passEl.value)
-        .catch(e => alert(e.message));
+    // Smooth auth UI groups
+    const signedOutGroup = $("#auth-signed-out");
+    const signedInGroup  = $("#auth-signed-in");
+
+    function setAuthLoading(mode, loading){
+      if (mode === "in") btnIn.textContent = loading ? "Signing in…" : "Sign in";
+      if (mode === "up") btnUp.textContent = loading ? "Creating…" : "Sign up";
+      btnIn.disabled = loading;
+      btnUp.disabled = loading;
+      btnOut.disabled = loading;
+      emailEl.disabled = loading;
+      passEl.disabled = loading;
+    }
+
+    btnUp.onclick = async () => {
+      try {
+        setAuthLoading("up", true);
+        await createUserWithEmailAndPassword(auth, emailEl.value, passEl.value);
+      } catch (e) {
+        alert(e.message);
+      } finally {
+        setAuthLoading("up", false);
+      }
     };
-    btnIn.onclick = () => {
-      signInWithEmailAndPassword(auth, emailEl.value, passEl.value)
-        .catch(e => alert(e.message));
+
+    btnIn.onclick = async () => {
+      try {
+        setAuthLoading("in", true);
+        await signInWithEmailAndPassword(auth, emailEl.value, passEl.value);
+      } catch (e) {
+        alert(e.message);
+      } finally {
+        setAuthLoading("in", false);
+      }
     };
-    btnOut.onclick = () => signOut(auth);
+
+    btnOut.onclick = async () => {
+      try {
+        btnOut.textContent = "Signing out…";
+        btnOut.disabled = true;
+        await signOut(auth);
+      } catch (e) {
+        alert(e.message);
+      } finally {
+        btnOut.textContent = "Sign out";
+        btnOut.disabled = false;
+      }
+    };
+
+    // Enter key submits sign-in from password field
+    passEl.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") btnIn.click();
+    });
 
     const searchEl = $("#search");
     const sortEl   = $("#sort");
@@ -418,9 +488,11 @@
     onAuthStateChanged(auth, user => {
       if (user) {
         statusEl.textContent = `Signed in as ${user.email}`;
-        btnOut.style.display = "";
-        btnIn.style.display = btnUp.style.display = "none";
-        emailEl.style.display = passEl.style.display = "none";
+
+        signedOutGroup.classList.add("hidden");
+        signedOutGroup.classList.remove("visible");
+        signedInGroup.classList.add("visible");
+        signedInGroup.classList.remove("hidden");
 
         const medsRef = collection(db, `users/${user.uid}/medications`);
         const q = query(medsRef, orderBy("createdAt","desc"));
@@ -432,9 +504,12 @@
         });
       } else {
         statusEl.textContent = "Signed out";
-        btnOut.style.display = "none";
-        btnIn.style.display = btnUp.style.display = "";
-        emailEl.style.display = passEl.style.display = "";
+
+        signedInGroup.classList.add("hidden");
+        signedInGroup.classList.remove("visible");
+        signedOutGroup.classList.add("visible");
+        signedOutGroup.classList.remove("hidden");
+
         if (unsub) { unsub(); unsub = null; }
         allMeds = [];
         render();
@@ -558,7 +633,6 @@
       } else if (sortEl.value === "class") {
         lst.sort((a,b) => (a.class || "").localeCompare((b.class || ""), undefined, { sensitivity:"base" }));
       }
-      // "new" uses Firestore orderBy(createdAt desc) already
       return lst;
     }
 
