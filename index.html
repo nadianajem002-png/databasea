@@ -32,6 +32,20 @@
     h1{margin:0 0 10px; font-size:24px}
     p.hint{color:var(--mut); margin:0 0 16px}
 
+    /* ========================= BRAND BAR (NEW) ========================= */
+    .brand{display:flex; gap:12px; align-items:center; margin-bottom:14px}
+    .brand-mark{
+      width:44px; height:44px; border-radius:14px;
+      display:grid; place-items:center;
+      background: color-mix(in oklab, var(--accent) 18%, var(--card));
+      border:1px solid var(--line);
+      font-weight:800; letter-spacing:.04em;
+      box-shadow: var(--shadow);
+      user-select:none;
+    }
+    .brand-text h1{margin:0}
+    .brand-text .hint{margin:4px 0 0}
+
     .toolbar{display:flex; gap:8px; flex-wrap:wrap; margin:0 0 12px}
     .toolbar input,.toolbar select{
       background:var(--card);
@@ -40,6 +54,7 @@
       border-radius:999px;
       padding:10px 12px;
     }
+
     .btn{
       cursor:pointer;
       background:var(--accent);
@@ -58,6 +73,14 @@
       border-radius:999px;
       padding:9px 13px
     }
+
+    /* ========================= BUTTON POLISH (NEW) ========================= */
+    .btn, .btn-ghost{
+      transition: transform .08s ease, filter .18s ease, background .18s ease, border-color .18s ease;
+    }
+    .btn:hover{filter:brightness(1.05)}
+    .btn:active{transform:translateY(1px)}
+    .btn-ghost:hover{background:color-mix(in oklab, var(--card) 70%, var(--accent) 8%)}
 
     .card{
       background:var(--card);
@@ -96,7 +119,13 @@
       background:var(--card);
       border:1px solid var(--line);
       border-radius:12px;
-      position:relative
+      position:relative;
+      /* NEW: subtle gradient + hover motion */
+      background: linear-gradient(180deg,
+        color-mix(in oklab, var(--card) 92%, white 8%),
+        var(--card)
+      );
+      transition: transform .12s ease, outline .12s ease, border-color .12s ease, filter .12s ease;
     }
     .th{font-size:12px; color:var(--mut); text-transform:uppercase; letter-spacing:.04em}
     .tr.head{
@@ -147,17 +176,36 @@
       border:1px solid var(--line);
       color:var(--fg);
       padding:6px 8px;
-      border-radius:10px
+      border-radius:10px;
+      transition: background .18s ease, transform .08s ease, border-color .18s ease;
     }
+    .iconbtn:hover{background:color-mix(in oklab, var(--card) 70%, var(--accent) 8%)}
+    .iconbtn:active{transform:translateY(1px)}
     .tr:hover{
       outline:1px solid color-mix(in oklab, var(--line) 70%, var(--accent));
+      transform: translateY(-1px);
+    }
+
+    /* ========================= SECTION TITLE (NEW) ========================= */
+    .section-title{
+      display:flex; align-items:center; justify-content:space-between;
+      margin:4px 0 10px;
+    }
+    .section-title h3{margin:0}
+    .section-title .chip{
+      font-size:12px; color:var(--mut);
+      border:1px solid var(--line);
+      border-radius:999px; padding:4px 10px;
+      background: color-mix(in oklab, var(--card) 80%, var(--accent) 6%);
+      user-select:none;
+      white-space:nowrap;
     }
 
     /* ========================= FORM ========================= */
     #med-form{
       display:grid;
       grid-template-columns:repeat(2,1fr);
-      gap:10px
+      gap:12px; /* NEW: calmer spacing */
     }
     #med-form input, #med-form textarea{
       background:var(--card);
@@ -167,7 +215,7 @@
       padding:10px;
       font:inherit;
     }
-    #med-form textarea{grid-column:1/-1; min-height:70px}
+    #med-form textarea{grid-column:1/-1; min-height:86px} /* NEW: more readable */
 
     /* ========================= MODAL ========================= */
     .modal-backdrop{
@@ -193,10 +241,11 @@
       display:flex;
       justify-content:space-between;
       align-items:center;
-      padding:14px
+      padding:14px;
+      border-bottom:1px solid var(--line); /* NEW */
     }
     .modal .content{
-      padding:14px;
+      padding:16px; /* NEW */
       display:grid;
       gap:8px
     }
@@ -206,16 +255,23 @@
       object-fit:contain;
       border-radius:10px;
       border:1px solid var(--line);
-      background:rgba(255,255,255,.04)
+      background:rgba(255,255,255,.04);
+      padding:10px; /* NEW */
     }
   </style>
 </head>
 <body>
   <div class="wrap">
-   <h1>NurseLearnsMeds</h1>
-   <p class="hint">
-  A personal medication database built for nursing school and clinical practice.
-</p>
+
+    <!-- NEW: Brand bar -->
+    <div class="brand">
+      <div class="brand-mark">NLM</div>
+      <div class="brand-text">
+        <h1>NurseLearnsMeds</h1>
+        <p class="hint">A personal medication database built for nursing school and clinical practice.</p>
+      </div>
+    </div>
+
     <div class="toolbar card">
       <span id="auth-status" class="hint">Signed out</span>
 
@@ -245,7 +301,12 @@
     </div>
 
     <section class="card" style="margin-bottom:12px">
-      <h3 style="margin:4px 0 10px">Add / Edit medication</h3>
+      <!-- NEW: section title + chip -->
+      <div class="section-title">
+        <h3>Add / Edit medication</h3>
+        <span class="chip">Private • Cloud-synced</span>
+      </div>
+
       <form id="med-form">
         <input id="med-image-url" type="hidden" />
         <input id="med-name" placeholder="Name" required />
@@ -803,33 +864,14 @@
         // Add imported docs
         const batchAdd = writeBatch(db);
         const FIELDS = [
-          "name",
-          "route",
-          "class",
-          "dose",
-          "mechanism",
-          "indications",
-          "contraindications",
-          "warnings",
-          "sidefx",
-          "interactions",
-          "monitoring",
-          "nursing",
-          "lactation",
-          "notes",
-          "imageUrl"
+          "name","route","class","dose","mechanism","indications","contraindications","warnings",
+          "sidefx","interactions","monitoring","nursing","lactation","notes","imageUrl"
         ];
 
         for (const rec of data) {
           const ref = doc(medsCol);
           const payload = {};
-          for (const f of FIELDS) {
-            if (rec[f] !== undefined && rec[f] !== null) {
-              payload[f] = rec[f];
-            } else {
-              payload[f] = "";
-            }
-          }
+          for (const f of FIELDS) payload[f] = (rec[f] ?? "");
           const now = serverTimestamp();
           payload.createdAt = now;
           payload.updatedAt = now;
