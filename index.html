@@ -389,6 +389,48 @@
       background:rgba(255,255,255,.04);
       padding:10px;
     }
+
+    /* =========================================================
+       OPTION 2 APPLIED: LIGHTER EDIT BOX (form area only)
+       Paste-at-end overrides
+    ========================================================= */
+    #med-form-wrapper{
+      border-radius: var(--borderRadius);
+    }
+
+    #med-form-wrapper .form-section{
+      background: color-mix(in oklab, var(--card) 78%, white 22%);
+      border-color: color-mix(in oklab, var(--line) 65%, white 35%);
+    }
+
+    #med-form-wrapper .form-panel{
+      background: color-mix(in oklab, var(--card) 70%, white 30%);
+      border-color: color-mix(in oklab, var(--line) 65%, white 35%);
+    }
+
+    #med-form-wrapper input,
+    #med-form-wrapper textarea{
+      background: color-mix(in oklab, var(--card) 60%, white 40%);
+      border-color: color-mix(in oklab, var(--line) 60%, white 40%);
+      color: var(--fg);
+    }
+
+    #med-form-wrapper textarea{
+      line-height:1.7;
+    }
+
+    #med-form-wrapper input::placeholder,
+    #med-form-wrapper textarea::placeholder{
+      color: color-mix(in oklab, var(--mut) 70%, var(--fg) 30%);
+    }
+
+    #med-form-wrapper .form-section.active{
+      background: linear-gradient(180deg,
+        color-mix(in oklab, var(--accent) 10%, white 12%, var(--card)),
+        color-mix(in oklab, var(--card) 74%, white 26%)
+      );
+      border-color: color-mix(in oklab, var(--accent) 55%, var(--line));
+    }
   </style>
 </head>
 <body>
@@ -529,6 +571,7 @@
     <div id="empty" class="card" style="display:none; text-align:center">No medications yet — add your first above.</div>
   </div>
 
+  <!-- MODAL -->
   <div id="modal-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal">
       <header>
