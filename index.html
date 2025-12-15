@@ -186,6 +186,26 @@
       transform: translateY(-1px);
     }
 
+    /* ========================= Group headers (NEW) ========================= */
+    .group-header{
+      margin:10px 0 6px;
+      padding:10px 12px;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      font-weight:700;
+    }
+    .group-header .tag{
+      font-weight:600;
+      font-size:12px;
+      color:var(--mut);
+      border:1px solid var(--line);
+      border-radius:999px;
+      padding:4px 10px;
+      background: color-mix(in oklab, var(--card) 80%, var(--accent) 6%);
+      user-select:none;
+    }
+
     /* ========================= SECTION TITLE (NEW) ========================= */
     .section-title{
       display:flex; align-items:center; justify-content:space-between;
@@ -216,6 +236,26 @@
       font:inherit;
     }
     #med-form textarea{grid-column:1/-1; min-height:86px} /* NEW: more readable */
+
+    .color-row{
+      display:flex;
+      gap:10px;
+      align-items:center;
+    }
+    .color-row label{
+      color:var(--mut);
+      font-size:13px;
+      white-space:nowrap;
+    }
+    .color-row input[type="color"]{
+      width:52px;
+      height:40px;
+      padding:0;
+      border-radius:10px;
+      border:1px solid var(--line);
+      background:var(--card);
+      cursor:pointer;
+    }
 
     /* ========================= MODAL ========================= */
     .modal-backdrop{
@@ -294,6 +334,7 @@
         <option value="az">A → Z</option>
         <option value="za">Z → A</option>
         <option value="class">Class</option>
+        <option value="route">Route</option>
       </select>
       <button id="btn-export" class="btn-ghost">Export JSON</button>
       <button id="btn-import" class="btn-ghost">Import JSON</button>
@@ -309,7 +350,15 @@
 
       <form id="med-form">
         <input id="med-image-url" type="hidden" />
+
         <input id="med-name" placeholder="Name" required />
+
+        <!-- NEW: name color picker -->
+        <div class="color-row">
+          <label for="med-name-color">Name color</label>
+          <input id="med-name-color" type="color" value="#ffffff" />
+        </div>
+
         <input id="med-route" placeholder="Route (PO, IV, IM, SC, patch, PR, topical, inhalation)" />
         <input id="med-class" placeholder="Class" />
         <input id="med-dose" placeholder="Dose (e.g., 500 mg BID)" />
@@ -435,6 +484,9 @@
     const statusEl= $("#auth-status");
     const emailEl = $("#auth-email");
     const passEl  = $("#auth-pass");
+
+    // NEW: name color input
+    const nameColorEl = $("#med-name-color");
 
     // Smooth auth UI groups
     const signedOutGroup = $("#auth-signed-out");
@@ -612,6 +664,9 @@
         payload[key] = inputs[id].value || "";
       }
 
+      // NEW: name color (default white)
+      payload.nameColor = (nameColorEl?.value || "#ffffff");
+
       // carry current image unless replaced
       payload.imageUrl = imgUrlEl?.value || "";
 
@@ -659,6 +714,10 @@
         const key = id.slice(5);
         inputs[id].value = m[key] || "";
       }
+
+      // NEW: restore name color
+      if (nameColorEl) nameColorEl.value = m.nameColor || "#ffffff";
+
       if (imgUrlEl) imgUrlEl.value = m.imageUrl || "";
       if (imgPreview) {
         imgPreview.src = m.imageUrl || "";
@@ -684,7 +743,7 @@
       let lst = allMeds.slice();
       if (q) {
         lst = lst.filter(m => (
-          `${m.name || ""} ${m.class || ""} ${m.indications || ""} ${m.sidefx || ""} ${m.mechanism || ""}`
+          `${m.name || ""} ${m.class || ""} ${m.route || ""} ${m.indications || ""} ${m.sidefx || ""} ${m.mechanism || ""}`
         ).toLowerCase().includes(q));
       }
       if (sortEl.value === "az") {
@@ -693,15 +752,39 @@
         lst.sort((a,b) => (b.name || "").localeCompare((a.name || ""), undefined, { sensitivity:"base" }));
       } else if (sortEl.value === "class") {
         lst.sort((a,b) => (a.class || "").localeCompare((b.class || ""), undefined, { sensitivity:"base" }));
+      } else if (sortEl.value === "route") {
+        lst.sort((a,b) => (a.route || "").localeCompare((b.route || ""), undefined, { sensitivity:"base" }));
       }
       return lst;
+    }
+
+    // NEW: group header label when sorting by class/route
+    function groupKey(m){
+      if (sortEl.value === "class") return (m.class || "Unclassified").trim() || "Unclassified";
+      if (sortEl.value === "route") return (m.route || "No route").trim() || "No route";
+      return null;
     }
 
     function render(){
       const meds = filtered();
       emptyEl.style.display = meds.length ? "none" : "";
       listEl.innerHTML = "";
+
+      let lastGroup = null;
+
       for (const m of meds) {
+        const g = groupKey(m);
+        if (g && g !== lastGroup) {
+          const header = document.createElement("div");
+          header.className = "card group-header";
+          header.innerHTML = `
+            <div>${esc(g)}</div>
+            <div class="tag">${sortEl.value === "class" ? "Class" : "Route"}</div>
+          `;
+          listEl.appendChild(header);
+          lastGroup = g;
+        }
+
         const color = ROUTE_COLORS[rKey(m.route)] || "#b8c0ea";
         const cColor = classColor(m.class || "");
         const row = document.createElement("div");
@@ -710,13 +793,15 @@
         row.setAttribute("role","button");
         row.style.boxShadow = `inset 4px 0 0 0 ${cColor}`;
 
+        const nameColor = m.nameColor || "#ffffff";
+
         row.innerHTML = `
           <div>
             ${m.imageUrl
               ? `<img src="${esc(m.imageUrl)}" alt="" class="thumb">`
               : '<div class="thumb" aria-hidden="true"></div>'}
           </div>
-          <div class="name">${esc(m.name || "(unnamed)")}</div>
+          <div class="name" style="color:${esc(nameColor)}">${esc(m.name || "(unnamed)")}</div>
           <div class="mut"><span class="class-dot" style="background:${cColor}"></span>${esc(m.class || "")}</div>
           <div><span class="route-pill" style="border-color:${color}; color:${color}">${esc(m.route || "")}</span></div>
           <div>${esc(m.dose || "")}</div>
@@ -746,6 +831,9 @@
         imgPreview.style.display = "none";
       }
       if (imgUrlEl) imgUrlEl.value = "";
+
+      // NEW: reset name color to white
+      if (nameColorEl) nameColorEl.value = "#ffffff";
     }
 
     function esc(s){
@@ -766,6 +854,8 @@
 
     function openModal(m){
       modalTitle.textContent = m.name || "(unnamed)";
+      modalTitle.style.color = m.nameColor || "#ffffff";
+
       const rColor = ROUTE_COLORS[rKey(m.route)] || "#b8c0ea";
       const cColor = classColor(m.class || "");
 
@@ -790,9 +880,13 @@
 
     modalClose.addEventListener("click", () => {
       modalBackdrop.style.display = "none";
+      modalTitle.style.color = ""; // reset
     });
     modalBackdrop.addEventListener("click", (e) => {
-      if (e.target === modalBackdrop) modalBackdrop.style.display = "none";
+      if (e.target === modalBackdrop) {
+        modalBackdrop.style.display = "none";
+        modalTitle.style.color = "";
+      }
     });
 
     // ========================= EXPORT / IMPORT JSON =========================
@@ -864,7 +958,7 @@
         // Add imported docs
         const batchAdd = writeBatch(db);
         const FIELDS = [
-          "name","route","class","dose","mechanism","indications","contraindications","warnings",
+          "name","nameColor","route","class","dose","mechanism","indications","contraindications","warnings",
           "sidefx","interactions","monitoring","nursing","lactation","notes","imageUrl"
         ];
 
@@ -872,6 +966,7 @@
           const ref = doc(medsCol);
           const payload = {};
           for (const f of FIELDS) payload[f] = (rec[f] ?? "");
+          if (!payload.nameColor) payload.nameColor = "#ffffff";
           const now = serverTimestamp();
           payload.createdAt = now;
           payload.updatedAt = now;
