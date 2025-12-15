@@ -32,7 +32,7 @@
     h1{margin:0 0 10px; font-size:24px}
     p.hint{color:var(--mut); margin:0 0 16px}
 
-    /* ========================= BRAND BAR (NEW) ========================= */
+    /* ========================= BRAND BAR ========================= */
     .brand{display:flex; gap:12px; align-items:center; margin-bottom:14px}
     .brand-mark{
       width:44px; height:44px; border-radius:14px;
@@ -74,7 +74,7 @@
       padding:9px 13px
     }
 
-    /* ========================= BUTTON POLISH (NEW) ========================= */
+    /* ========================= BUTTON POLISH ========================= */
     .btn, .btn-ghost{
       transition: transform .08s ease, filter .18s ease, background .18s ease, border-color .18s ease;
     }
@@ -109,7 +109,6 @@
     }
 
     /* ========================= LIST (table-like) ========================= */
-    .table{width:100%; border-collapse:separate; border-spacing:0 8px}
     .tr{
       display:grid;
       grid-template-columns: 70px 2fr 1.2fr 0.8fr 1fr 80px;
@@ -120,7 +119,6 @@
       border:1px solid var(--line);
       border-radius:12px;
       position:relative;
-      /* NEW: subtle gradient + hover motion */
       background: linear-gradient(180deg,
         color-mix(in oklab, var(--card) 92%, white 8%),
         var(--card)
@@ -132,7 +130,10 @@
       background:transparent;
       border:none;
       padding:0;
-      grid-template-columns: 70px 2fr 1.2fr 0.8fr 1fr 80px
+      display:grid;
+      grid-template-columns: 70px 2fr 1.2fr 0.8fr 1fr 80px;
+      gap:12px;
+      align-items:center;
     }
     .name{font-weight:700}
     .route-pill{
@@ -158,17 +159,6 @@
       margin-right:8px;
       vertical-align:middle
     }
-    .tr::before{
-      content:"";
-      position:absolute;
-      left:0;
-      top:0;
-      bottom:0;
-      width:4px;
-      border-top-left-radius:12px;
-      border-bottom-left-radius:12px;
-      background:transparent
-    }
     .actions{display:flex; gap:6px; justify-content:flex-end}
     .iconbtn{
       cursor:pointer;
@@ -186,7 +176,7 @@
       transform: translateY(-1px);
     }
 
-    /* ========================= Group headers (NEW) ========================= */
+    /* ========================= Group headers ========================= */
     .group-header{
       margin:10px 0 6px;
       padding:10px 12px;
@@ -206,10 +196,12 @@
       user-select:none;
     }
 
-    /* ========================= SECTION TITLE (NEW) ========================= */
+    /* ========================= SECTION TITLE ========================= */
     .section-title{
       display:flex; align-items:center; justify-content:space-between;
       margin:4px 0 10px;
+      gap:10px;
+      flex-wrap:wrap;
     }
     .section-title h3{margin:0}
     .section-title .chip{
@@ -221,12 +213,25 @@
       white-space:nowrap;
     }
 
-    /* ========================= FORM ========================= */
-    #med-form{
-      display:grid;
-      grid-template-columns:repeat(2,1fr);
-      gap:12px; /* NEW: calmer spacing */
+    /* ========================= CLEAN FORM (collapsible) ========================= */
+    #med-form-wrapper{
+      overflow:hidden;
+      transition:max-height .35s ease, opacity .25s ease, transform .25s ease;
     }
+    .form-collapsed{
+      max-height:0;
+      opacity:0;
+      pointer-events:none;
+      transform: translateY(-4px);
+    }
+    .form-expanded{
+      max-height:5000px;
+      opacity:1;
+      pointer-events:auto;
+      transform: translateY(0);
+    }
+
+    #med-form{display:grid; gap:10px}
     #med-form input, #med-form textarea{
       background:var(--card);
       color:var(--fg);
@@ -235,7 +240,37 @@
       padding:10px;
       font:inherit;
     }
-    #med-form textarea{grid-column:1/-1; min-height:86px} /* NEW: more readable */
+    #med-form textarea{min-height:86px}
+
+    .form-section{
+      width:100%;
+      text-align:left;
+      background:transparent;
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:10px 12px;
+      font-weight:750;
+      color:var(--fg);
+      cursor:pointer;
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+    }
+    .form-section .muted{color:var(--mut); font-weight:600; font-size:12px}
+    .form-panel{
+      display:none;
+      border:1px solid var(--line);
+      border-radius:12px;
+      padding:12px;
+      background: color-mix(in oklab, var(--card) 92%, black 8%);
+    }
+    .form-panel.open{
+      display:grid;
+      grid-template-columns:repeat(2,1fr);
+      gap:12px;
+    }
+    .form-panel textarea{grid-column:1/-1}
+    .form-panel .full{grid-column:1/-1}
 
     .color-row{
       display:flex;
@@ -255,6 +290,13 @@
       border:1px solid var(--line);
       background:var(--card);
       cursor:pointer;
+    }
+
+    .form-actions{
+      display:flex;
+      justify-content:flex-end;
+      gap:8px;
+      margin-top:2px;
     }
 
     /* ========================= MODAL ========================= */
@@ -282,10 +324,10 @@
       justify-content:space-between;
       align-items:center;
       padding:14px;
-      border-bottom:1px solid var(--line); /* NEW */
+      border-bottom:1px solid var(--line);
     }
     .modal .content{
-      padding:16px; /* NEW */
+      padding:16px;
       display:grid;
       gap:8px
     }
@@ -296,14 +338,13 @@
       border-radius:10px;
       border:1px solid var(--line);
       background:rgba(255,255,255,.04);
-      padding:10px; /* NEW */
+      padding:10px;
     }
   </style>
 </head>
 <body>
   <div class="wrap">
 
-    <!-- NEW: Brand bar -->
     <div class="brand">
       <div class="brand-mark">NLM</div>
       <div class="brand-text">
@@ -315,7 +356,6 @@
     <div class="toolbar card">
       <span id="auth-status" class="hint">Signed out</span>
 
-      <!-- Smooth auth UI -->
       <div id="auth-signed-out" class="auth-group visible">
         <input id="auth-email" type="email" placeholder="email" autocomplete="username" />
         <input id="auth-pass" type="password" placeholder="password" autocomplete="current-password" />
@@ -341,47 +381,79 @@
       <input id="file-import" type="file" accept="application/json" style="display:none" />
     </div>
 
+    <!-- CLEANER: collapsed form + Add button -->
     <section class="card" style="margin-bottom:12px">
-      <!-- NEW: section title + chip -->
       <div class="section-title">
-        <h3>Add / Edit medication</h3>
+        <h3>Medications</h3>
         <span class="chip">Private • Cloud-synced</span>
+        <span style="flex:1"></span>
+        <button id="btn-add-med" class="btn">＋ Add medication</button>
       </div>
 
-      <form id="med-form">
-        <input id="med-image-url" type="hidden" />
-
-        <input id="med-name" placeholder="Name" required />
-
-        <!-- NEW: name color picker -->
-        <div class="color-row">
-          <label for="med-name-color">Name color</label>
-          <input id="med-name-color" type="color" value="#ffffff" />
-        </div>
-
-        <input id="med-route" placeholder="Route (PO, IV, IM, SC, patch, PR, topical, inhalation)" />
-        <input id="med-class" placeholder="Class" />
-        <input id="med-dose" placeholder="Dose (e.g., 500 mg BID)" />
-        <input id="med-image" type="file" accept="image/*" />
-        <img id="med-image-preview" alt="" style="max-width:160px; max-height:120px; border:1px solid var(--line); border-radius:8px; display:none" />
-
-        <textarea id="med-mechanism" placeholder="Mechanism of action"></textarea>
-        <textarea id="med-indications" placeholder="Indications"></textarea>
-        <textarea id="med-contraindications" placeholder="Contraindications"></textarea>
-        <textarea id="med-warnings" placeholder="Warnings / Precautions"></textarea>
-        <textarea id="med-sidefx" placeholder="Adverse Effects / Side Effects"></textarea>
-        <textarea id="med-interactions" placeholder="Drug Interactions"></textarea>
-        <textarea id="med-monitoring" placeholder="Monitoring Parameters"></textarea>
-        <textarea id="med-nursing" placeholder="Nursing Considerations"></textarea>
-        <textarea id="med-lactation" placeholder="Pregnancy / Lactation notes"></textarea>
-        <textarea id="med-notes" placeholder="Additional Notes"></textarea>
-
-        <div style="grid-column:1/-1; display:flex; gap:8px; justify-content:flex-end">
-          <button type="submit" class="btn">Save</button>
-          <button type="button" id="btn-reset" class="btn-ghost">Reset</button>
+      <div id="med-form-wrapper" class="form-collapsed">
+        <form id="med-form">
+          <input id="med-image-url" type="hidden" />
           <input type="hidden" id="med-id" />
-        </div>
-      </form>
+
+          <!-- BASICS -->
+          <button type="button" class="form-section" data-section="basic">
+            <span>Basic info</span>
+            <span class="muted">name • route • class • dose</span>
+          </button>
+          <div class="form-panel" data-panel="basic">
+            <input id="med-name" placeholder="Medication name" required />
+            <input id="med-route" placeholder="Route (PO, IV, IM, SC, patch, PR, topical, inhalation)" />
+            <input id="med-class" placeholder="Class" />
+            <input id="med-dose" placeholder="Dose (e.g., 500 mg BID)" />
+
+            <div class="color-row full">
+              <label for="med-name-color">Name color</label>
+              <input id="med-name-color" type="color" value="#ffffff" />
+            </div>
+          </div>
+
+          <!-- IMAGE -->
+          <button type="button" class="form-section" data-section="image">
+            <span>Image</span>
+            <span class="muted">optional</span>
+          </button>
+          <div class="form-panel" data-panel="image">
+            <input id="med-image" type="file" accept="image/*" class="full" />
+            <img id="med-image-preview" alt="" class="full" style="max-width:160px; max-height:120px; border:1px solid var(--line); border-radius:8px; display:none" />
+          </div>
+
+          <!-- CLINICAL -->
+          <button type="button" class="form-section" data-section="clinical">
+            <span>Clinical pharmacology</span>
+            <span class="muted">MOA • indications • contraindications</span>
+          </button>
+          <div class="form-panel" data-panel="clinical">
+            <textarea id="med-mechanism" placeholder="Mechanism of action"></textarea>
+            <textarea id="med-indications" placeholder="Indications"></textarea>
+            <textarea id="med-contraindications" placeholder="Contraindications"></textarea>
+            <textarea id="med-warnings" placeholder="Warnings / Precautions"></textarea>
+            <textarea id="med-sidefx" placeholder="Adverse Effects / Side Effects"></textarea>
+            <textarea id="med-interactions" placeholder="Drug Interactions"></textarea>
+          </div>
+
+          <!-- NURSING -->
+          <button type="button" class="form-section" data-section="nursing">
+            <span>Nursing considerations</span>
+            <span class="muted">monitoring • teaching • notes</span>
+          </button>
+          <div class="form-panel" data-panel="nursing">
+            <textarea id="med-monitoring" placeholder="Monitoring Parameters"></textarea>
+            <textarea id="med-nursing" placeholder="Nursing Considerations"></textarea>
+            <textarea id="med-lactation" placeholder="Pregnancy / Lactation notes"></textarea>
+            <textarea id="med-notes" placeholder="Additional Notes"></textarea>
+          </div>
+
+          <div class="form-actions">
+            <button type="submit" class="btn">Save</button>
+            <button type="button" id="btn-reset" class="btn-ghost">Reset</button>
+          </div>
+        </form>
+      </div>
     </section>
 
     <!-- LIST HEADER -->
@@ -459,6 +531,40 @@
     const listEl = $("#list");
     const emptyEl = $("#empty");
 
+    // Collapsible form controls
+    const addMedBtn = $("#btn-add-med");
+    const formWrap = $("#med-form-wrapper");
+
+    function expandForm(openPanel = "basic"){
+      formWrap.classList.add("form-expanded");
+      formWrap.classList.remove("form-collapsed");
+      addMedBtn.textContent = "– Close";
+      // open a panel if none open
+      const panel = document.querySelector(`.form-panel[data-panel="${openPanel}"]`);
+      if (panel) panel.classList.add("open");
+      window.scrollTo({ top: formWrap.getBoundingClientRect().top + window.scrollY - 18, behavior: "smooth" });
+    }
+    function collapseForm(){
+      formWrap.classList.add("form-collapsed");
+      formWrap.classList.remove("form-expanded");
+      addMedBtn.textContent = "＋ Add medication";
+    }
+
+    addMedBtn.addEventListener("click", () => {
+      const isOpen = formWrap.classList.contains("form-expanded");
+      if (isOpen) collapseForm();
+      else expandForm("basic");
+    });
+
+    // section toggles
+    document.querySelectorAll(".form-section").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const key = btn.getAttribute("data-section");
+        const panel = document.querySelector(`.form-panel[data-panel="${key}"]`);
+        panel?.classList.toggle("open");
+      });
+    });
+
     const inputIds = [
       "#med-name",
       "#med-route",
@@ -485,7 +591,6 @@
     const emailEl = $("#auth-email");
     const passEl  = $("#auth-pass");
 
-    // NEW: name color input
     const nameColorEl = $("#med-name-color");
 
     // Smooth auth UI groups
@@ -537,7 +642,6 @@
       }
     };
 
-    // Enter key submits sign-in from password field
     passEl.addEventListener("keydown", (e) => {
       if (e.key === "Enter") btnIn.click();
     });
@@ -588,9 +692,7 @@
       const first = key.split(/[ /-]/)[0];
       if (CLASS_COLORS[first]) return CLASS_COLORS[first];
       let h = 0;
-      for (let i=0;i<key.length;i++) {
-        h = (h * 31 + key.charCodeAt(i)) >>> 0;
-      }
+      for (let i=0;i<key.length;i++) h = (h * 31 + key.charCodeAt(i)) >>> 0;
       const hue = h % 360;
       return `hsl(${hue} 70% 70%)`;
     }
@@ -601,11 +703,8 @@
     onAuthStateChanged(auth, user => {
       if (user) {
         statusEl.textContent = `Signed in as ${user.email}`;
-
-        signedOutGroup.classList.add("hidden");
-        signedOutGroup.classList.remove("visible");
-        signedInGroup.classList.add("visible");
-        signedInGroup.classList.remove("hidden");
+        signedOutGroup.classList.add("hidden"); signedOutGroup.classList.remove("visible");
+        signedInGroup.classList.add("visible"); signedInGroup.classList.remove("hidden");
 
         const medsRef = collection(db, `users/${user.uid}/medications`);
         const q = query(medsRef, orderBy("createdAt","desc"));
@@ -617,11 +716,8 @@
         });
       } else {
         statusEl.textContent = "Signed out";
-
-        signedInGroup.classList.add("hidden");
-        signedInGroup.classList.remove("visible");
-        signedOutGroup.classList.add("visible");
-        signedOutGroup.classList.remove("hidden");
+        signedInGroup.classList.add("hidden"); signedInGroup.classList.remove("visible");
+        signedOutGroup.classList.add("visible"); signedOutGroup.classList.remove("hidden");
 
         if (unsub) { unsub(); unsub = null; }
         allMeds = [];
@@ -647,10 +743,7 @@
     $("#med-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       const user = auth.currentUser;
-      if (!user) {
-        alert("Sign in first.");
-        return;
-      }
+      if (!user) { alert("Sign in first."); return; }
 
       const basePath = `users/${user.uid}/medications`;
       const medsCol = collection(db, basePath);
@@ -660,14 +753,11 @@
 
       const payload = {};
       for (const id of inputIds) {
-        const key = id.slice(5); // "#med-name" -> "name"
+        const key = id.slice(5);
         payload[key] = inputs[id].value || "";
       }
 
-      // NEW: name color (default white)
       payload.nameColor = (nameColorEl?.value || "#ffffff");
-
-      // carry current image unless replaced
       payload.imageUrl = imgUrlEl?.value || "";
 
       const file = imgInput?.files?.[0] || null;
@@ -699,7 +789,7 @@
       }
     });
 
-    $("#btn-reset").onclick = clearForm;
+    $("#btn-reset").onclick = () => clearForm(true);
 
     async function handleDelete(id){
       const user = auth.currentUser;
@@ -709,13 +799,13 @@
     }
 
     function handleEdit(m){
+      expandForm("basic");
+
       idEl.value = m.id;
       for (const id of inputIds) {
         const key = id.slice(5);
         inputs[id].value = m[key] || "";
       }
-
-      // NEW: restore name color
       if (nameColorEl) nameColorEl.value = m.nameColor || "#ffffff";
 
       if (imgUrlEl) imgUrlEl.value = m.imageUrl || "";
@@ -724,16 +814,13 @@
         imgPreview.style.display = m.imageUrl ? "block" : "none";
       }
       if (imgInput) imgInput.value = "";
-      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.scrollTo({ top: formWrap.getBoundingClientRect().top + window.scrollY - 18, behavior: "smooth" });
     }
 
     // ========================= Search / Sort =========================
     function debounce(fn, ms){
       let t;
-      return (...a) => {
-        clearTimeout(t);
-        t = setTimeout(() => fn(...a), ms);
-      };
+      return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
     }
     searchEl.addEventListener("input", debounce(render, 120));
     sortEl.addEventListener("change", render);
@@ -758,7 +845,6 @@
       return lst;
     }
 
-    // NEW: group header label when sorting by class/route
     function groupKey(m){
       if (sortEl.value === "class") return (m.class || "Unclassified").trim() || "Unclassified";
       if (sortEl.value === "route") return (m.route || "No route").trim() || "No route";
@@ -822,18 +908,16 @@
       }
     }
 
-    function clearForm(){
+    function clearForm(collapse = true){
       Object.values(inputs).forEach(i => i.value = "");
       idEl.value = "";
       if (imgInput) imgInput.value = "";
-      if (imgPreview) {
-        imgPreview.src = "";
-        imgPreview.style.display = "none";
-      }
+      if (imgPreview) { imgPreview.src = ""; imgPreview.style.display = "none"; }
       if (imgUrlEl) imgUrlEl.value = "";
-
-      // NEW: reset name color to white
       if (nameColorEl) nameColorEl.value = "#ffffff";
+      // close panels
+      document.querySelectorAll(".form-panel").forEach(p => p.classList.remove("open"));
+      if (collapse) collapseForm();
     }
 
     function esc(s){
@@ -880,7 +964,7 @@
 
     modalClose.addEventListener("click", () => {
       modalBackdrop.style.display = "none";
-      modalTitle.style.color = ""; // reset
+      modalTitle.style.color = "";
     });
     modalBackdrop.addEventListener("click", (e) => {
       if (e.target === modalBackdrop) {
@@ -896,15 +980,9 @@
 
     btnExport.addEventListener("click", () => {
       const user = auth.currentUser;
-      if (!user) {
-        alert("Sign in first to export your medications.");
-        return;
-      }
+      if (!user) { alert("Sign in first to export your medications."); return; }
       const medsToExport = allMeds.map(({ id, createdAt, updatedAt, ...rest }) => rest);
-      if (!medsToExport.length) {
-        alert("No medications to export.");
-        return;
-      }
+      if (!medsToExport.length) { alert("No medications to export."); return; }
       const blob = new Blob([JSON.stringify(medsToExport, null, 2)], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -916,38 +994,24 @@
       URL.revokeObjectURL(url);
     });
 
-    btnImport.addEventListener("click", () => {
-      fileImport.click();
-    });
+    btnImport.addEventListener("click", () => { fileImport.click(); });
 
     fileImport.addEventListener("change", async (e) => {
       const user = auth.currentUser;
-      if (!user) {
-        alert("Sign in first to import medications.");
-        fileImport.value = "";
-        return;
-      }
+      if (!user) { alert("Sign in first to import medications."); fileImport.value = ""; return; }
       const file = e.target.files?.[0];
       if (!file) return;
 
       try {
         const text = await file.text();
         const data = JSON.parse(text);
-        if (!Array.isArray(data)) {
-          throw new Error("JSON file must contain an array of medications.");
-        }
-        if (!data.length) {
-          alert("File has no medications to import.");
-          return;
-        }
-        if (!confirm(`This will REPLACE all your existing medications with ${data.length} from the file. Continue?`)) {
-          return;
-        }
+        if (!Array.isArray(data)) throw new Error("JSON file must contain an array of medications.");
+        if (!data.length) { alert("File has no medications to import."); return; }
+        if (!confirm(`This will REPLACE all your existing medications with ${data.length} from the file. Continue?`)) return;
 
         const basePath = `users/${user.uid}/medications`;
         const medsCol = collection(db, basePath);
 
-        // Delete existing docs
         const existingSnap = await getDocs(medsCol);
         if (!existingSnap.empty) {
           const batchDel = writeBatch(db);
@@ -955,7 +1019,6 @@
           await batchDel.commit();
         }
 
-        // Add imported docs
         const batchAdd = writeBatch(db);
         const FIELDS = [
           "name","nameColor","route","class","dose","mechanism","indications","contraindications","warnings",
