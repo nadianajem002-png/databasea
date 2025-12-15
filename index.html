@@ -213,7 +213,7 @@
       white-space:nowrap;
     }
 
-    /* ========================= CLEAN FORM (collapsible) ========================= */
+    /* ========================= CLEAN FORM (collapsible wrapper) ========================= */
     #med-form-wrapper{
       overflow:hidden;
       transition:max-height .35s ease, opacity .25s ease, transform .25s ease;
@@ -242,26 +242,75 @@
     }
     #med-form textarea{min-height:86px}
 
+    /* ========================= Cleaner, more distinct edit subtabs ========================= */
     .form-section{
       width:100%;
       text-align:left;
-      background:transparent;
       border:1px solid var(--line);
-      border-radius:12px;
-      padding:10px 12px;
-      font-weight:750;
-      color:var(--fg);
+      border-radius:14px;
+      padding:12px 14px;
       cursor:pointer;
+
       display:flex;
       align-items:center;
       justify-content:space-between;
+      gap:12px;
+
+      background: linear-gradient(180deg,
+        color-mix(in oklab, var(--card) 92%, white 8%),
+        var(--card)
+      );
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.03);
+      transition: transform .08s ease, border-color .18s ease, filter .18s ease;
     }
-    .form-section .muted{color:var(--mut); font-weight:600; font-size:12px}
+    .form-section:hover{filter:brightness(1.03)}
+    .form-section:active{transform: translateY(1px)}
+
+    .form-section .left{
+      display:flex;
+      flex-direction:column;
+      gap:2px;
+    }
+    .form-section .title{
+      font-weight:800;
+      letter-spacing:.01em;
+    }
+    .form-section .muted{
+      color:var(--mut);
+      font-weight:650;
+      font-size:12px;
+    }
+
+    .form-section .chev{
+      width:34px;
+      height:34px;
+      border-radius:12px;
+      display:grid;
+      place-items:center;
+      border:1px solid var(--line);
+      background: color-mix(in oklab, var(--card) 86%, var(--accent) 6%);
+      transition: transform .18s ease, background .18s ease, border-color .18s ease;
+    }
+
+    .form-section.active{
+      border-color: color-mix(in oklab, var(--accent) 55%, var(--line));
+      background: linear-gradient(180deg,
+        color-mix(in oklab, var(--accent) 12%, var(--card)),
+        var(--card)
+      );
+    }
+    .form-section.active .chev{
+      border-color: color-mix(in oklab, var(--accent) 60%, var(--line));
+      background: color-mix(in oklab, var(--card) 70%, var(--accent) 12%);
+      transform: rotate(180deg);
+    }
+
     .form-panel{
       display:none;
+      margin-top:10px;
       border:1px solid var(--line);
-      border-radius:12px;
-      padding:12px;
+      border-radius:14px;
+      padding:14px;
       background: color-mix(in oklab, var(--card) 92%, black 8%);
     }
     .form-panel.open{
@@ -381,7 +430,6 @@
       <input id="file-import" type="file" accept="application/json" style="display:none" />
     </div>
 
-    <!-- CLEANER: collapsed form + Add button -->
     <section class="card" style="margin-bottom:12px">
       <div class="section-title">
         <h3>Medications</h3>
@@ -397,8 +445,11 @@
 
           <!-- BASICS -->
           <button type="button" class="form-section" data-section="basic">
-            <span>Basic info</span>
-            <span class="muted">name • route • class • dose</span>
+            <span class="left">
+              <span class="title">Basic info</span>
+              <span class="muted">name • route • class • dose</span>
+            </span>
+            <span class="chev">⌄</span>
           </button>
           <div class="form-panel" data-panel="basic">
             <input id="med-name" placeholder="Medication name" required />
@@ -414,8 +465,11 @@
 
           <!-- IMAGE -->
           <button type="button" class="form-section" data-section="image">
-            <span>Image</span>
-            <span class="muted">optional</span>
+            <span class="left">
+              <span class="title">Image</span>
+              <span class="muted">optional</span>
+            </span>
+            <span class="chev">⌄</span>
           </button>
           <div class="form-panel" data-panel="image">
             <input id="med-image" type="file" accept="image/*" class="full" />
@@ -424,8 +478,11 @@
 
           <!-- CLINICAL -->
           <button type="button" class="form-section" data-section="clinical">
-            <span>Clinical pharmacology</span>
-            <span class="muted">MOA • indications • contraindications</span>
+            <span class="left">
+              <span class="title">Clinical pharmacology</span>
+              <span class="muted">MOA • indications • contraindications</span>
+            </span>
+            <span class="chev">⌄</span>
           </button>
           <div class="form-panel" data-panel="clinical">
             <textarea id="med-mechanism" placeholder="Mechanism of action"></textarea>
@@ -438,8 +495,11 @@
 
           <!-- NURSING -->
           <button type="button" class="form-section" data-section="nursing">
-            <span>Nursing considerations</span>
-            <span class="muted">monitoring • teaching • notes</span>
+            <span class="left">
+              <span class="title">Nursing considerations</span>
+              <span class="muted">monitoring • teaching • notes</span>
+            </span>
+            <span class="chev">⌄</span>
           </button>
           <div class="form-panel" data-panel="nursing">
             <textarea id="med-monitoring" placeholder="Monitoring Parameters"></textarea>
@@ -456,7 +516,6 @@
       </div>
     </section>
 
-    <!-- LIST HEADER -->
     <div class="tr head">
       <div class="th">Img</div>
       <div class="th">Name</div>
@@ -470,7 +529,6 @@
     <div id="empty" class="card" style="display:none; text-align:center">No medications yet — add your first above.</div>
   </div>
 
-  <!-- MODAL -->
   <div id="modal-backdrop" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="modal-title">
     <div class="modal">
       <header>
@@ -482,7 +540,6 @@
   </div>
 
   <script type="module">
-    // ========================= Firebase =========================
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.1/firebase-app.js";
     import {
       getAuth,
@@ -526,28 +583,35 @@
     const db = getFirestore(app);
     const storage = getStorage(app);
 
-    // ========================= DOM helpers =========================
     const $ = sel => document.querySelector(sel);
     const listEl = $("#list");
     const emptyEl = $("#empty");
 
-    // Collapsible form controls
     const addMedBtn = $("#btn-add-med");
     const formWrap = $("#med-form-wrapper");
+
+    function openSection(key){
+      document.querySelectorAll(".form-panel").forEach(p => p.classList.remove("open"));
+      document.querySelectorAll(".form-section").forEach(b => b.classList.remove("active"));
+      const panel = document.querySelector(`.form-panel[data-panel="${key}"]`);
+      const btn   = document.querySelector(`.form-section[data-section="${key}"]`);
+      if (panel) panel.classList.add("open");
+      if (btn) btn.classList.add("active");
+    }
 
     function expandForm(openPanel = "basic"){
       formWrap.classList.add("form-expanded");
       formWrap.classList.remove("form-collapsed");
       addMedBtn.textContent = "– Close";
-      // open a panel if none open
-      const panel = document.querySelector(`.form-panel[data-panel="${openPanel}"]`);
-      if (panel) panel.classList.add("open");
+      openSection(openPanel);
       window.scrollTo({ top: formWrap.getBoundingClientRect().top + window.scrollY - 18, behavior: "smooth" });
     }
     function collapseForm(){
       formWrap.classList.add("form-collapsed");
       formWrap.classList.remove("form-expanded");
       addMedBtn.textContent = "＋ Add medication";
+      document.querySelectorAll(".form-panel").forEach(p => p.classList.remove("open"));
+      document.querySelectorAll(".form-section").forEach(b => b.classList.remove("active"));
     }
 
     addMedBtn.addEventListener("click", () => {
@@ -556,12 +620,17 @@
       else expandForm("basic");
     });
 
-    // section toggles
     document.querySelectorAll(".form-section").forEach(btn => {
       btn.addEventListener("click", () => {
         const key = btn.getAttribute("data-section");
         const panel = document.querySelector(`.form-panel[data-panel="${key}"]`);
-        panel?.classList.toggle("open");
+        const isOpen = panel?.classList.contains("open");
+        if (isOpen) {
+          panel.classList.remove("open");
+          btn.classList.remove("active");
+        } else {
+          openSection(key);
+        }
       });
     });
 
@@ -593,7 +662,6 @@
 
     const nameColorEl = $("#med-name-color");
 
-    // Smooth auth UI groups
     const signedOutGroup = $("#auth-signed-out");
     const signedInGroup  = $("#auth-signed-in");
 
@@ -608,53 +676,32 @@
     }
 
     btnUp.onclick = async () => {
-      try {
-        setAuthLoading("up", true);
-        await createUserWithEmailAndPassword(auth, emailEl.value, passEl.value);
-      } catch (e) {
-        alert(e.message);
-      } finally {
-        setAuthLoading("up", false);
-      }
+      try { setAuthLoading("up", true); await createUserWithEmailAndPassword(auth, emailEl.value, passEl.value); }
+      catch (e) { alert(e.message); }
+      finally { setAuthLoading("up", false); }
     };
 
     btnIn.onclick = async () => {
-      try {
-        setAuthLoading("in", true);
-        await signInWithEmailAndPassword(auth, emailEl.value, passEl.value);
-      } catch (e) {
-        alert(e.message);
-      } finally {
-        setAuthLoading("in", false);
-      }
+      try { setAuthLoading("in", true); await signInWithEmailAndPassword(auth, emailEl.value, passEl.value); }
+      catch (e) { alert(e.message); }
+      finally { setAuthLoading("in", false); }
     };
 
     btnOut.onclick = async () => {
-      try {
-        btnOut.textContent = "Signing out…";
-        btnOut.disabled = true;
-        await signOut(auth);
-      } catch (e) {
-        alert(e.message);
-      } finally {
-        btnOut.textContent = "Sign out";
-        btnOut.disabled = false;
-      }
+      try { btnOut.textContent = "Signing out…"; btnOut.disabled = true; await signOut(auth); }
+      catch (e) { alert(e.message); }
+      finally { btnOut.textContent = "Sign out"; btnOut.disabled = false; }
     };
 
-    passEl.addEventListener("keydown", (e) => {
-      if (e.key === "Enter") btnIn.click();
-    });
+    passEl.addEventListener("keydown", (e) => { if (e.key === "Enter") btnIn.click(); });
 
     const searchEl = $("#search");
     const sortEl   = $("#sort");
 
-    // Image elements
     const imgInput   = $("#med-image");
     const imgPreview = $("#med-image-preview");
     const imgUrlEl   = $("#med-image-url");
 
-    // Route colors
     const ROUTE_COLORS = {
       "PO": "#8ab4ff",
       "IV": "#7affba",
@@ -669,7 +716,6 @@
     };
     const rKey = v => (v || "").toString().trim().toUpperCase().replace("INH","INHALATION");
 
-    // Class color helpers (fallback to hash)
     const CLASS_COLORS = {
       "opioid analgesic":"#fca5a5",
       "antihistamine":"#93c5fd",
@@ -725,21 +771,15 @@
       }
     });
 
-    // ========================= Image preview =========================
     imgInput?.addEventListener("change", () => {
       const f = imgInput.files?.[0];
-      if (!f) {
-        imgPreview.style.display = "none";
-        imgPreview.src = "";
-        return;
-      }
+      if (!f) { imgPreview.style.display = "none"; imgPreview.src = ""; return; }
       const url = URL.createObjectURL(f);
       imgPreview.src = url;
       imgPreview.style.display = "block";
       if (imgUrlEl) imgUrlEl.value = "";
     });
 
-    // ========================= Create / Update with image =========================
     $("#med-form").addEventListener("submit", async (e) => {
       e.preventDefault();
       const user = auth.currentUser;
@@ -814,10 +854,8 @@
         imgPreview.style.display = m.imageUrl ? "block" : "none";
       }
       if (imgInput) imgInput.value = "";
-      window.scrollTo({ top: formWrap.getBoundingClientRect().top + window.scrollY - 18, behavior: "smooth" });
     }
 
-    // ========================= Search / Sort =========================
     function debounce(fn, ms){
       let t;
       return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
@@ -915,9 +953,8 @@
       if (imgPreview) { imgPreview.src = ""; imgPreview.style.display = "none"; }
       if (imgUrlEl) imgUrlEl.value = "";
       if (nameColorEl) nameColorEl.value = "#ffffff";
-      // close panels
-      document.querySelectorAll(".form-panel").forEach(p => p.classList.remove("open"));
       if (collapse) collapseForm();
+      else openSection("basic");
     }
 
     function esc(s){
@@ -930,7 +967,6 @@
       })[c]);
     }
 
-    // ========================= Modal =========================
     const modalBackdrop = $("#modal-backdrop");
     const modalTitle    = $("#modal-title");
     const modalContent  = $("#modal-content");
@@ -973,7 +1009,6 @@
       }
     });
 
-    // ========================= EXPORT / IMPORT JSON =========================
     const btnExport   = $("#btn-export");
     const btnImport   = $("#btn-import");
     const fileImport  = $("#file-import");
